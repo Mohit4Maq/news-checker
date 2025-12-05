@@ -884,8 +884,8 @@ if content_param:
                                 "content": prompt
                             }
                         ],
-                        temperature=0.4,
-                        max_tokens=4000
+                        temperature=0.5,
+                        max_tokens=6000
                     )
                     
                     analysis_text = response.choices[0].message.content
@@ -1297,8 +1297,8 @@ if analyze_button:
                                 "content": prompt
                             }
                         ],
-                        temperature=0.4,
-                        max_tokens=4000
+                        temperature=0.5,
+                        max_tokens=6000
                     )
                     
                     analysis_text = response.choices[0].message.content
