@@ -298,31 +298,50 @@ def display_analysis_result(result):
     analysis = result.get("analysis", {})
     article = result.get("article", {})
     
-    # Header
+    # Header - Modern Card Style
     st.markdown("---")
-    st.markdown(f"### 📰 {article.get('title', 'No Title')}")
-    st.markdown(f"**🔗 URL:** {result.get('url', 'N/A')}")
+    st.markdown(f"""
+    <div class="info-card" style="background: linear-gradient(135deg, #f8f9ff 0%, #ffffff 100%); border-left-color: #667eea;">
+        <div style="font-size: 1.5rem; font-weight: 600; color: #333; margin-bottom: 12px;">📰 {article.get('title', 'No Title')}</div>
+        <div style="color: #666; font-size: 14px;">🔗 <a href="{result.get('url', '#')}" target="_blank" style="color: #667eea; text-decoration: none;">{result.get('url', 'N/A')}</a></div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    # Overall Verdict
+    # Overall Verdict - Enhanced Design
     category = analysis.get("category", "UNKNOWN")
     overall_score = analysis.get("overall_score", 0)
     
     category_style = get_category_style(category)
     
     st.markdown(f"""
-    <div class="verdict-box {category_style}">
-        <h2>🎯 Overall Verdict: {category}</h2>
-        <h3>📊 Overall Score: {overall_score}/100</h3>
+    <div class="verdict-box {category_style}" style="text-align: center; padding: 32px;">
+        <h2 style="margin-bottom: 16px; font-size: 1.8rem;">🎯 Overall Verdict</h2>
+        <div style="font-size: 1.5rem; font-weight: 600; margin-bottom: 12px;">{category}</div>
+        <div style="font-size: 2rem; font-weight: bold; margin-top: 16px;">📊 {overall_score}/100</div>
     </div>
     """, unsafe_allow_html=True)
     
-    # Category reasoning and keywords
-    if "category_reasoning" in analysis and analysis.get("category_reasoning"):
-        st.caption(f"📝 **Category Reasoning:** {analysis.get('category_reasoning')}")
-    if "category_keywords" in analysis and analysis.get("category_keywords"):
-        keywords = analysis.get("category_keywords", [])
-        if keywords:
-            st.caption(f"🔑 **Key Terms:** {', '.join(keywords[:5])}")
+    # Category reasoning and keywords - In cards
+    if "category_reasoning" in analysis and analysis.get("category_reasoning") or "category_keywords" in analysis and analysis.get("category_keywords"):
+        col_reason, col_keywords = st.columns(2)
+        with col_reason:
+            if "category_reasoning" in analysis and analysis.get("category_reasoning"):
+                st.markdown(f"""
+                <div class="info-card" style="border-left-color: #17a2b8;">
+                    <div style="font-weight: 600; color: #17a2b8; margin-bottom: 8px;">📝 Category Reasoning</div>
+                    <div style="color: #555; line-height: 1.6; font-size: 14px;">{analysis.get('category_reasoning')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        with col_keywords:
+            if "category_keywords" in analysis and analysis.get("category_keywords"):
+                keywords = analysis.get("category_keywords", [])
+                if keywords:
+                    st.markdown(f"""
+                    <div class="info-card" style="border-left-color: #ffc107;">
+                        <div style="font-weight: 600; color: #ff9800; margin-bottom: 8px;">🔑 Key Terms</div>
+                        <div style="color: #555; line-height: 1.6; font-size: 14px;">{', '.join(keywords[:5])}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
     
     # Score breakdown - Modern Gradient Cards
     st.markdown("---")
