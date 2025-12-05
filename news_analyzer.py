@@ -84,6 +84,54 @@ class NewsAnalyzer:
                 continue
         return False
     
+    def _filter_news_content(self, text: str) -> str:
+        """Filter out non-news content from extracted text"""
+        if not text:
+            return ""
+        
+        lines = text.split('\n')
+        filtered_lines = []
+        
+        # Common non-news patterns to filter
+        skip_patterns = [
+            'cookie', 'privacy policy', 'terms of service', 'subscribe',
+            'newsletter', 'follow us', 'share on', 'like us', 'follow @',
+            'advertisement', 'sponsored', 'promoted', 'trending now',
+            'you may also like', 'related articles', 'recommended for you',
+            'sign up', 'log in', 'register', 'create account',
+            '©', 'copyright', 'all rights reserved', 'terms & conditions',
+            'menu', 'navigation', 'home', 'about', 'contact',
+            'skip to', 'jump to', 'back to top', 'scroll to top'
+        ]
+        
+        for line in lines:
+            line = line.strip()
+            if not line or len(line) < 10:
+                continue
+            
+            # Skip very short lines (likely navigation)
+            if len(line) < 15 and line.isupper():
+                continue
+            
+            # Skip lines matching skip patterns
+            line_lower = line.lower()
+            should_skip = False
+            for pattern in skip_patterns:
+                if pattern in line_lower:
+                    should_skip = True
+                    break
+            
+            if should_skip:
+                continue
+            
+            # Skip lines that are mostly punctuation or numbers
+            if len([c for c in line if c.isalnum()]) < len(line) * 0.3:
+                continue
+            
+            filtered_lines.append(line)
+        
+        return '\n'.join(filtered_lines)
+    
     def fetch_with_newspaper3k(self, url: str) -> Dict[str, Any]:
         """Try fetching using newspaper3k library (handles many news sites)"""
         if not NEWSPAPER_AVAILABLE:
@@ -566,9 +614,31 @@ class NewsAnalyzer:
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Remove script and style elements
-            for script in soup(["script", "style", "nav", "header", "footer", "aside"]):
-                script.decompose()
+            # Remove non-content elements more aggressively
+            for element in soup(["script", "style", "nav", "header", "footer", "aside", 
+                               "iframe", "embed", "object", "form", "button", "input",
+                               "select", "textarea", "noscript", "svg", "canvas"]):
+                element.decompose()
+            
+            # Remove common non-content classes/IDs
+            unwanted_selectors = [
+                '[class*="nav"]', '[class*="menu"]', '[class*="sidebar"]',
+                '[class*="ad"]', '[class*="advertisement"]', '[class*="promo"]',
+                '[class*="social"]', '[class*="share"]', '[class*="comment"]',
+                '[class*="related"]', '[class*="recommended"]', '[class*="trending"]',
+                '[id*="nav"]', '[id*="menu"]', '[id*="sidebar"]',
+                '[id*="ad"]', '[id*="advertisement"]', '[id*="promo"]',
+                '[id*="social"]', '[id*="share"]', '[id*="comment"]',
+                '[role="navigation"]', '[role="banner"]', '[role="complementary"]',
+                '[role="contentinfo"]', '[role="search"]'
+            ]
+            
+            for selector in unwanted_selectors:
+                try:
+                    for elem in soup.select(selector):
+                        elem.decompose()
+                except:
+                    pass
             
             # Extract title (try multiple methods)
             title_text = "No title found"
@@ -604,62 +674,117 @@ class NewsAnalyzer:
                 '.story-content',
                 '.article-wrapper',
                 '.content-wrapper',
+                '.article-detail',
+                '.article-full',
+                '.article-main-content',
+                '.story-detail',
+                '.news-content',
+                '.news-body',
                 '[class*="article"]',
                 '[class*="story"]',
                 '[class*="content"]',
                 '[class*="post"]',
                 '[class*="entry"]',
+                '[class*="news"]',
                 'main',
                 '.main-content',
                 '#main-content',
                 '#article-content',
                 '#story-content',
+                '#news-content',
                 '[id*="article"]',
                 '[id*="content"]',
-                '[id*="story"]'
+                '[id*="story"]',
+                '[id*="news"]'
             ]
+            
+            best_content = None
+            best_length = 0
             
             for selector in content_selectors:
                 try:
                     article = soup.select_one(selector)
                     if article:
                         # Get text but preserve some structure
-                        article_content = article.get_text(separator='\n', strip=True)
-                        # Lower threshold - accept if we have reasonable content
-                        if len(article_content) > 150:
-                            break
+                        content = article.get_text(separator='\n', strip=True)
+                        # Filter out very short or likely non-content text
+                        content = self._filter_news_content(content)
+                        
+                        # Keep the longest/best content found
+                        if len(content) > best_length and len(content) > 100:
+                            best_content = content
+                            best_length = len(content)
+                            if len(content) > 300:  # Good enough, use it
+                                article_content = content
+                                break
                 except:
                     continue
+            
+            # Use best content found if we didn't break early
+            if not article_content and best_content:
+                article_content = best_content
             
             if not article_content or len(article_content) < 150:
                 # Try multiple paragraph extraction strategies
                 paragraphs = soup.find_all('p')
                 if paragraphs:
-                    para_texts = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True) and len(p.get_text(strip=True)) > 20]
+                    para_texts = []
+                    for p in paragraphs:
+                        text = p.get_text(strip=True)
+                        # Filter paragraphs - must be substantial and not navigation
+                        if text and len(text) > 20:
+                            # Skip paragraphs that look like navigation/menu items
+                            text_lower = text.lower()
+                            if not any(skip in text_lower for skip in ['cookie', 'subscribe', 'newsletter', 'follow us', 'menu', 'navigation']):
+                                # Skip if it's mostly links or very short
+                                if len([c for c in text if c.isalnum()]) > len(text) * 0.5:
+                                    para_texts.append(text)
+                    
                     if para_texts:
-                        article_content = '\n'.join(para_texts)
+                        # Filter the combined content
+                        combined = '\n'.join(para_texts)
+                        article_content = self._filter_news_content(combined)
             
             if not article_content or len(article_content) < 100:
-                # Try divs with text content
-                divs = soup.find_all('div', class_=lambda x: x and ('content' in x.lower() or 'article' in x.lower() or 'story' in x.lower()))
-                if divs:
-                    div_texts = []
-                    for div in divs:
+                # Try divs with text content - more targeted search
+                div_candidates = []
+                
+                # Find divs with content-related classes/IDs
+                for div in soup.find_all('div'):
+                    classes = ' '.join(div.get('class', [])).lower()
+                    div_id = (div.get('id') or '').lower()
+                    
+                    # Check if div looks like content
+                    if any(keyword in classes or keyword in div_id for keyword in 
+                          ['content', 'article', 'story', 'post', 'entry', 'news', 'main']):
                         text = div.get_text(separator='\n', strip=True)
+                        text = self._filter_news_content(text)
                         if len(text) > 100:
-                            div_texts.append(text)
-                    if div_texts:
-                        # Use the longest div
-                        article_content = max(div_texts, key=len)
+                            div_candidates.append((len(text), text))
+                
+                if div_candidates:
+                    # Use the longest, most substantial div
+                    div_candidates.sort(reverse=True)
+                    article_content = div_candidates[0][1]
             
             if not article_content or len(article_content) < 80:
                 # Last resort: get body text but filter out navigation/menu items
                 body = soup.find('body')
                 if body:
-                    # Remove common non-content elements
-                    for elem in body.find_all(['nav', 'header', 'footer', 'aside', 'script', 'style']):
+                    # Remove common non-content elements more aggressively
+                    for elem in body.find_all(['nav', 'header', 'footer', 'aside', 'script', 'style',
+                                              'form', 'button', 'input', 'select', 'iframe']):
                         elem.decompose()
-                    article_content = body.get_text(separator='\n', strip=True)
+                    
+                    # Remove elements with navigation-related classes/IDs
+                    for elem in body.find_all(class_=lambda x: x and any(
+                        keyword in ' '.join(x).lower() for keyword in 
+                        ['nav', 'menu', 'sidebar', 'ad', 'social', 'share', 'comment']
+                    )):
+                        elem.decompose()
+                    
+                    raw_content = body.get_text(separator='\n', strip=True)
+                    article_content = self._filter_news_content(raw_content)
             
             # Lower threshold - accept content if we have at least 80 characters
             if not article_content or len(article_content) < 80:
