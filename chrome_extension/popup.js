@@ -9,54 +9,132 @@ function extractContentDirectly() {
         content: ''
     };
     
-    // Extract title
-    const titleSelectors = ['h1', '[property="og:title"]', '[name="twitter:title"]', 'title'];
+    // Extract title - try multiple methods
+    const titleSelectors = [
+        'h1',
+        '[property="og:title"]',
+        '[name="twitter:title"]',
+        'meta[property="og:title"]',
+        'title'
+    ];
     for (const selector of titleSelectors) {
-        const element = document.querySelector(selector);
-        if (element) {
-            result.title = element.textContent || element.content || element.innerText || '';
-            if (result.title) break;
-        }
+        try {
+            const element = document.querySelector(selector);
+            if (element) {
+                result.title = element.textContent || element.getAttribute('content') || element.innerText || '';
+                if (result.title && result.title.trim()) {
+                    result.title = result.title.trim();
+                    break;
+                }
+            }
+        } catch(e) {}
     }
     
-    // Try to extract main article content
+    // Try to extract main article content - more comprehensive selectors
     const contentSelectors = [
-        'article', '[role="article"]', '.article-content', '.article-body',
-        '.post-content', '.story-body', '.content-body', '.entry-content',
-        'main article', '.article', '.story', '.news-article'
+        'article',
+        '[role="article"]',
+        '.article-content',
+        '.article-body',
+        '.post-content',
+        '.story-body',
+        '.content-body',
+        '.entry-content',
+        '.article-text',
+        '.article-main',
+        '.story-content',
+        '.news-content',
+        '.news-body',
+        'main article',
+        '.article',
+        '.story',
+        '.news-article',
+        '[class*="article"]',
+        '[class*="story"]',
+        '[class*="content"]',
+        '[id*="article"]',
+        '[id*="content"]',
+        '[id*="story"]'
     ];
     
     let articleElement = null;
+    let bestContent = '';
+    let bestLength = 0;
+    
+    // Try all selectors and keep the one with most content
     for (const selector of contentSelectors) {
-        articleElement = document.querySelector(selector);
-        if (articleElement) break;
+        try {
+            const elements = document.querySelectorAll(selector);
+            for (const el of elements) {
+                const text = el.innerText || el.textContent || '';
+                if (text.length > bestLength && text.length > 100) {
+                    bestContent = text;
+                    bestLength = text.length;
+                    articleElement = el;
+                }
+            }
+        } catch(e) {}
     }
     
-    if (articleElement) {
-        result.content = articleElement.innerText || articleElement.textContent || '';
+    if (articleElement && bestContent) {
+        result.content = bestContent;
     } else {
-        // Fallback: get body text but filter out navigation
+        // Fallback: get body text but filter out navigation more aggressively
         const body = document.body;
         if (body) {
             const clone = body.cloneNode(true);
-            const removeSelectors = ['nav', 'header', 'footer', 'aside', 'script', 'style',
-                                   '.nav', '.navigation', '.menu', '.sidebar', '.ad',
-                                   '.advertisement', '.social', '.share', '.comment'];
+            
+            // Remove common non-content elements
+            const removeSelectors = [
+                'nav', 'header', 'footer', 'aside', 'script', 'style', 'iframe',
+                '.nav', '.navigation', '.menu', '.sidebar', '.ad', '.advertisement',
+                '.social', '.share', '.comment', '.related', '.recommended',
+                '.trending', '.newsletter', '.subscribe', '.cookie', '.consent',
+                '[class*="nav"]', '[class*="menu"]', '[class*="ad"]',
+                '[class*="social"]', '[class*="share"]', '[id*="nav"]',
+                '[id*="menu"]', '[id*="ad"]', '[role="navigation"]',
+                '[role="banner"]', '[role="complementary"]'
+            ];
+            
             removeSelectors.forEach(sel => {
                 try {
                     clone.querySelectorAll(sel).forEach(el => el.remove());
                 } catch(e) {}
             });
-            result.content = clone.innerText || clone.textContent || '';
+            
+            // Get all paragraphs
+            const paragraphs = clone.querySelectorAll('p');
+            if (paragraphs.length > 0) {
+                const paraTexts = [];
+                paragraphs.forEach(p => {
+                    const text = (p.innerText || p.textContent || '').trim();
+                    // Only keep substantial paragraphs (not navigation/menu items)
+                    if (text.length > 20 && !text.match(/^(cookie|subscribe|follow|menu|home|about|contact)/i)) {
+                        paraTexts.push(text);
+                    }
+                });
+                result.content = paraTexts.join('\n\n');
+            } else {
+                result.content = clone.innerText || clone.textContent || '';
+            }
         }
     }
     
-    // Clean up content
+    // Clean up content - more aggressive
     if (result.content) {
         result.content = result.content
-            .replace(/\n{3,}/g, '\n\n')
-            .replace(/[ \t]{2,}/g, ' ')
+            .replace(/\n{3,}/g, '\n\n')  // Max 2 newlines
+            .replace(/[ \t]{2,}/g, ' ')   // Multiple spaces to single
+            .replace(/^\s+|\s+$/gm, '')   // Trim each line
             .trim();
+        
+        // Remove very short lines that are likely navigation
+        const lines = result.content.split('\n');
+        const filteredLines = lines.filter(line => {
+            const trimmed = line.trim();
+            return trimmed.length > 10 && !trimmed.match(/^(cookie|subscribe|follow|menu|home|about|contact|skip|jump)/i);
+        });
+        result.content = filteredLines.join('\n');
     }
     
     return result;
@@ -144,7 +222,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (results && results[0] && results[0].result) {
                     const articleData = results[0].result;
                     
-                    if (articleData.content && articleData.content.length > 50) {
+                    // Lower threshold - accept even shorter content (30 chars minimum)
+                    if (articleData.content && articleData.content.length > 30) {
                         const contentData = {
                             url: articleData.url,
                             title: articleData.title,
@@ -196,9 +275,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('Direct extraction failed, trying message method:', directError);
             }
             
-            // Fallback: Try content script message method
-            try {
-                chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, (response) => {
+            // If direct extraction didn't return content, try message method as last resort
+            // But prefer URL method over message method for reliability
+            if (true) {  // Always try URL method if direct extraction didn't work
+                console.log('Direct extraction returned no content, using URL method');
+                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                showStatus('info', 'Using URL method (content extraction unavailable)...');
+                chrome.tabs.create({ url: analyzeUrl });
+                setTimeout(() => window.close(), 500);
+            } else {
+                // Fallback: Try content script message method (disabled - less reliable)
+                try {
+                    chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, (response) => {
                     if (chrome.runtime.lastError || !response || !response.success) {
                         // Fallback to URL method
                         console.log('Message method failed, using URL fallback');
