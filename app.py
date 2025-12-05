@@ -30,9 +30,16 @@ st.markdown("""
     }
     .score-box {
         background-color: #f0f2f6;
-        padding: 1rem;
+        padding: 1.2rem;
         border-radius: 0.5rem;
-        margin: 0.5rem 0;
+        margin: 0.8rem 0;
+        border: 1px solid #e0e0e0;
+    }
+    .section-header {
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #1f77b4;
     }
     .verdict-box {
         padding: 1.5rem;
@@ -135,7 +142,9 @@ def display_analysis_result(result):
             st.caption(f"🔑 **Key Terms:** {', '.join(keywords[:5])}")
     
     # Score breakdown
+    st.markdown("---")
     st.markdown("### 📈 Detailed Scoring")
+    st.markdown("")
     
     col1, col2 = st.columns(2)
     
@@ -202,105 +211,23 @@ def display_analysis_result(result):
         st.markdown("### 🇮🇳 India-Specific Analysis")
         isa = analysis["india_specific_analysis"]
         
-        st.markdown(f"**📌 Relevance to India:** {isa.get('relevance_to_india', 'N/A')}")
-        st.markdown(f"**💡 Potential Impact:** {isa.get('potential_impact', 'N/A')}")
-        st.markdown(f"**⚠️ Harm Assessment:** {isa.get('harm_assessment', 'N/A')}")
-        st.markdown(f"**💬 Recommendation:** {isa.get('recommendation', 'N/A')}")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(f"**📌 Relevance to India:**")
+            st.info(isa.get('relevance_to_india', 'N/A'))
+            st.markdown(f"**💡 Potential Impact:**")
+            st.info(isa.get('potential_impact', 'N/A'))
+        with col2:
+            st.markdown(f"**⚠️ Harm Assessment:**")
+            st.warning(isa.get('harm_assessment', 'N/A'))
+            st.markdown(f"**💬 Recommendation:**")
+            st.success(isa.get('recommendation', 'N/A'))
     
     # Comprehensive Verdict
     if "verdict" in analysis:
         st.markdown("---")
         st.markdown("### 📋 Comprehensive Verdict")
         st.info(analysis.get("verdict", "N/A"))
-    
-    # Beneficiary Analysis Section
-    if "beneficiary_analysis" in analysis:
-        st.markdown("---")
-        st.markdown("## 💰 BENEFICIARY & HIDDEN AGENDA ANALYSIS")
-        st.markdown("### Who Benefits? What's Being Hidden?")
-        
-        ba = analysis["beneficiary_analysis"]
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            if "people_involved" in ba and ba.get("people_involved"):
-                st.markdown("#### 👥 People/Entities Involved")
-                for person in ba["people_involved"]:
-                    st.markdown(f"• {person}")
-            
-            if "direct_beneficiaries" in ba and ba.get("direct_beneficiaries"):
-                st.markdown("#### ✅ Direct Beneficiaries")
-                for beneficiary in ba["direct_beneficiaries"]:
-                    st.success(f"• {beneficiary}")
-            
-            if "indirect_beneficiaries" in ba and ba.get("indirect_beneficiaries"):
-                st.markdown("#### 🔗 Indirect Beneficiaries")
-                for beneficiary in ba["indirect_beneficiaries"]:
-                    st.warning(f"• {beneficiary}")
-        
-        with col2:
-            if "political_beneficiaries" in ba and ba.get("political_beneficiaries"):
-                st.markdown("#### 🏛️ Political Beneficiaries")
-                for beneficiary in ba["political_beneficiaries"]:
-                    st.markdown(f"• {beneficiary}")
-            
-            if "economic_beneficiaries" in ba and ba.get("economic_beneficiaries"):
-                st.markdown("#### 💵 Economic Beneficiaries")
-                for beneficiary in ba["economic_beneficiaries"]:
-                    st.markdown(f"• {beneficiary}")
-            
-            if "who_loses" in ba and ba.get("who_loses"):
-                st.markdown("#### ❌ Who Stands to Lose")
-                for entity in ba["who_loses"]:
-                    st.error(f"• {entity}")
-        
-        # Connections
-        if "connections_and_relationships" in ba:
-            st.markdown("#### 🔗 Connections & Relationships")
-            connections = ba["connections_and_relationships"]
-            
-            conn_cols = st.columns(3)
-            with conn_cols[0]:
-                if "media_connections" in connections and connections.get("media_connections"):
-                    st.markdown("**📺 Media Connections:**")
-                    for conn in connections["media_connections"][:3]:
-                        st.caption(f"• {conn}")
-            
-            with conn_cols[1]:
-                if "business_relationships" in connections and connections.get("business_relationships"):
-                    st.markdown("**💼 Business Relationships:**")
-                    for conn in connections["business_relationships"][:3]:
-                        st.caption(f"• {conn}")
-            
-            with conn_cols[2]:
-                if "political_affiliations" in connections and connections.get("political_affiliations"):
-                    st.markdown("**🏛️ Political Affiliations:**")
-                    for conn in connections["political_affiliations"][:3]:
-                        st.caption(f"• {conn}")
-            
-            if "undisclosed_relationships" in connections and connections.get("undisclosed_relationships"):
-                st.markdown("**⚠️ Undisclosed Relationships:**")
-                for conn in connections["undisclosed_relationships"]:
-                    st.error(f"• {conn}")
-        
-        # Critical findings
-        if "real_news_hidden" in ba and ba.get("real_news_hidden"):
-            st.error(f"**🔍 Real News Being Hidden:** {ba.get('real_news_hidden')}")
-        
-        if "agenda_masking" in ba and ba.get("agenda_masking"):
-            st.warning(f"**🎭 Agenda Masking:** {ba.get('agenda_masking')}")
-        
-        if "timing_analysis" in ba and ba.get("timing_analysis"):
-            st.info(f"**⏰ Timing Analysis:** {ba.get('timing_analysis')}")
-        
-        if "distraction_purpose" in ba and ba.get("distraction_purpose"):
-            st.warning(f"**🎪 Distraction Purpose:** {ba.get('distraction_purpose')}")
-        
-        if "conflict_of_interest" in ba and ba.get("conflict_of_interest"):
-            st.markdown("#### ⚠️ Conflicts of Interest")
-            for conflict in ba["conflict_of_interest"]:
-                st.error(f"• {conflict}")
     
     # Key Findings
     if "key_findings" in analysis:
@@ -309,11 +236,29 @@ def display_analysis_result(result):
         findings = analysis["key_findings"]
         if isinstance(findings, list):
             for i, finding in enumerate(findings, 1):
-                st.markdown(f"{i}. {finding}")
+                st.markdown(f"**{i}.** {finding}")
         else:
-            st.markdown(str(findings))
+            st.info(str(findings))
     
-    # Citizen Accountability Section - Most Important
+    # Critical Questions & Opposition Viewpoint
+    if "critical_questions" in analysis:
+        st.markdown("---")
+        st.markdown("### ❓ Critical Questions & Opposition Viewpoint")
+        cq = analysis["critical_questions"]
+        
+        if "questions_raised" in cq and cq.get("questions_raised"):
+            st.markdown("#### Questions That Should Be Asked:")
+            for i, q in enumerate(cq["questions_raised"][:5], 1):
+                st.markdown(f"**{i}.** {q}")
+    
+    # Opposition Viewpoint
+    if "opposition_viewpoint" in analysis and analysis.get("opposition_viewpoint"):
+        st.markdown("---")
+        st.markdown("### 🗣️ Opposition Viewpoint")
+        with st.expander("📖 View Opposition Analysis", expanded=False):
+            st.markdown(analysis.get("opposition_viewpoint"))
+    
+    # Citizen Accountability Section
     if "citizen_accountability" in analysis:
         st.markdown("---")
         st.markdown("## 👥 CITIZEN ACCOUNTABILITY - What Should Have Been Reported")
@@ -716,6 +661,112 @@ def display_analysis_result(result):
         st.markdown("---")
         st.markdown("### ⚠️ Fact-Check Notes")
         st.warning(analysis["fact_check_notes"])
+    
+    # Beneficiary Analysis Section - MOVED TO LAST
+    if "beneficiary_analysis" in analysis:
+        st.markdown("---")
+        st.markdown("## 💰 BENEFICIARY & HIDDEN AGENDA ANALYSIS")
+        st.markdown("### Who Benefits? What's Being Hidden?")
+        
+        ba = analysis["beneficiary_analysis"]
+        
+        # Critical findings first (most important)
+        if "real_news_hidden" in ba and ba.get("real_news_hidden"):
+            st.error(f"**🔍 Real News Being Hidden:** {ba.get('real_news_hidden')}")
+        
+        if "agenda_masking" in ba and ba.get("agenda_masking"):
+            st.warning(f"**🎭 Agenda Masking:** {ba.get('agenda_masking')}")
+        
+        if "distraction_purpose" in ba and ba.get("distraction_purpose"):
+            st.warning(f"**🎪 Distraction Purpose:** {ba.get('distraction_purpose')}")
+        
+        if "timing_analysis" in ba and ba.get("timing_analysis"):
+            st.info(f"**⏰ Timing Analysis:** {ba.get('timing_analysis')}")
+        
+        st.markdown("---")
+        
+        # People and Beneficiaries in organized columns
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if "people_involved" in ba and ba.get("people_involved"):
+                with st.container():
+                    st.markdown("#### 👥 People/Entities Involved")
+                    for person in ba["people_involved"]:
+                        st.markdown(f"• {person}")
+                    st.markdown("")
+            
+            if "direct_beneficiaries" in ba and ba.get("direct_beneficiaries"):
+                with st.container():
+                    st.markdown("#### ✅ Direct Beneficiaries")
+                    for beneficiary in ba["direct_beneficiaries"]:
+                        st.success(f"• {beneficiary}")
+                    st.markdown("")
+            
+            if "indirect_beneficiaries" in ba and ba.get("indirect_beneficiaries"):
+                with st.container():
+                    st.markdown("#### 🔗 Indirect Beneficiaries")
+                    for beneficiary in ba["indirect_beneficiaries"]:
+                        st.warning(f"• {beneficiary}")
+        
+        with col2:
+            if "political_beneficiaries" in ba and ba.get("political_beneficiaries"):
+                with st.container():
+                    st.markdown("#### 🏛️ Political Beneficiaries")
+                    for beneficiary in ba["political_beneficiaries"]:
+                        st.markdown(f"• {beneficiary}")
+                    st.markdown("")
+            
+            if "economic_beneficiaries" in ba and ba.get("economic_beneficiaries"):
+                with st.container():
+                    st.markdown("#### 💵 Economic Beneficiaries")
+                    for beneficiary in ba["economic_beneficiaries"]:
+                        st.markdown(f"• {beneficiary}")
+                    st.markdown("")
+            
+            if "who_loses" in ba and ba.get("who_loses"):
+                with st.container():
+                    st.markdown("#### ❌ Who Stands to Lose")
+                    for entity in ba["who_loses"]:
+                        st.error(f"• {entity}")
+        
+        # Connections section
+        if "connections_and_relationships" in ba:
+            st.markdown("---")
+            st.markdown("#### 🔗 Connections & Relationships")
+            connections = ba["connections_and_relationships"]
+            
+            conn_cols = st.columns(3)
+            with conn_cols[0]:
+                if "media_connections" in connections and connections.get("media_connections"):
+                    st.markdown("**📺 Media Connections:**")
+                    for conn in connections["media_connections"][:5]:
+                        st.caption(f"• {conn}")
+            
+            with conn_cols[1]:
+                if "business_relationships" in connections and connections.get("business_relationships"):
+                    st.markdown("**💼 Business Relationships:**")
+                    for conn in connections["business_relationships"][:5]:
+                        st.caption(f"• {conn}")
+            
+            with conn_cols[2]:
+                if "political_affiliations" in connections and connections.get("political_affiliations"):
+                    st.markdown("**🏛️ Political Affiliations:**")
+                    for conn in connections["political_affiliations"][:5]:
+                        st.caption(f"• {conn}")
+            
+            if "undisclosed_relationships" in connections and connections.get("undisclosed_relationships"):
+                st.markdown("---")
+                st.markdown("**⚠️ Undisclosed Relationships:**")
+                for conn in connections["undisclosed_relationships"]:
+                    st.error(f"• {conn}")
+        
+        # Conflicts of Interest
+        if "conflict_of_interest" in ba and ba.get("conflict_of_interest"):
+            st.markdown("---")
+            st.markdown("#### ⚠️ Conflicts of Interest")
+            for conflict in ba["conflict_of_interest"]:
+                st.error(f"• {conflict}")
 
 # Main UI
 st.markdown('<div class="main-header">📰 News Checker</div>', unsafe_allow_html=True)
