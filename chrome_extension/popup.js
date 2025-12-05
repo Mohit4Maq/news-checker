@@ -2,6 +2,7 @@
 const DEFAULT_STREAMLIT_URL = 'https://newsfactchecker.streamlit.app';
 
 // Function to extract content directly (runs in page context)
+// This is the PRIMARY method - extracts content from live page to bypass 403 errors
 function extractContentDirectly() {
     const result = {
         url: window.location.href,
@@ -15,6 +16,7 @@ function extractContentDirectly() {
         '[property="og:title"]',
         '[name="twitter:title"]',
         'meta[property="og:title"]',
+        'meta[name="title"]',
         'title'
     ];
     for (const selector of titleSelectors) {
@@ -30,34 +32,38 @@ function extractContentDirectly() {
         } catch(e) {}
     }
     
-    // Try to extract main article content - more comprehensive selectors
+    // AGGRESSIVE content extraction - try many selectors and get the best one
     const contentSelectors = [
         'article',
         '[role="article"]',
+        'main article',
+        'main [role="article"]',
         '.article-content',
         '.article-body',
-        '.post-content',
-        '.story-body',
-        '.content-body',
-        '.entry-content',
         '.article-text',
         '.article-main',
+        '.post-content',
+        '.story-body',
         '.story-content',
+        '.content-body',
+        '.entry-content',
         '.news-content',
         '.news-body',
-        'main article',
         '.article',
         '.story',
         '.news-article',
         '[class*="article"]',
         '[class*="story"]',
         '[class*="content"]',
+        '[class*="post"]',
         '[id*="article"]',
         '[id*="content"]',
-        '[id*="story"]'
+        '[id*="story"]',
+        '[id*="post"]',
+        'main',
+        '[role="main"]'
     ];
     
-    let articleElement = null;
     let bestContent = '';
     let bestLength = 0;
     
@@ -66,34 +72,41 @@ function extractContentDirectly() {
         try {
             const elements = document.querySelectorAll(selector);
             for (const el of elements) {
+                // Get text content
                 const text = el.innerText || el.textContent || '';
-                if (text.length > bestLength && text.length > 100) {
+                const textLength = text.trim().length;
+                
+                // Prefer longer content, but accept anything > 50 chars
+                if (textLength > bestLength && textLength > 50) {
                     bestContent = text;
-                    bestLength = text.length;
-                    articleElement = el;
+                    bestLength = textLength;
                 }
             }
         } catch(e) {}
     }
     
-    if (articleElement && bestContent) {
+    // If we found good content, use it
+    if (bestContent && bestLength > 50) {
         result.content = bestContent;
     } else {
-        // Fallback: get body text but filter out navigation more aggressively
+        // FALLBACK: Get body text but aggressively filter out non-content
         const body = document.body;
         if (body) {
             const clone = body.cloneNode(true);
             
-            // Remove common non-content elements
+            // Remove ALL non-content elements aggressively
             const removeSelectors = [
                 'nav', 'header', 'footer', 'aside', 'script', 'style', 'iframe',
+                'noscript', 'svg', 'canvas', 'video', 'audio', 'embed', 'object',
                 '.nav', '.navigation', '.menu', '.sidebar', '.ad', '.advertisement',
                 '.social', '.share', '.comment', '.related', '.recommended',
                 '.trending', '.newsletter', '.subscribe', '.cookie', '.consent',
+                '.header', '.footer', '.menu', '.sidebar', '.widget',
                 '[class*="nav"]', '[class*="menu"]', '[class*="ad"]',
-                '[class*="social"]', '[class*="share"]', '[id*="nav"]',
-                '[id*="menu"]', '[id*="ad"]', '[role="navigation"]',
-                '[role="banner"]', '[role="complementary"]'
+                '[class*="social"]', '[class*="share"]', '[class*="widget"]',
+                '[id*="nav"]', '[id*="menu"]', '[id*="ad"]', '[id*="sidebar"]',
+                '[role="navigation"]', '[role="banner"]', '[role="complementary"]',
+                '[role="search"]', '[role="form"]'
             ];
             
             removeSelectors.forEach(sel => {
@@ -102,25 +115,35 @@ function extractContentDirectly() {
                 } catch(e) {}
             });
             
-            // Get all paragraphs
+            // Try to get paragraphs first (most reliable)
             const paragraphs = clone.querySelectorAll('p');
-            if (paragraphs.length > 0) {
+            if (paragraphs.length > 3) {
                 const paraTexts = [];
                 paragraphs.forEach(p => {
                     const text = (p.innerText || p.textContent || '').trim();
-                    // Only keep substantial paragraphs (not navigation/menu items)
-                    if (text.length > 20 && !text.match(/^(cookie|subscribe|follow|menu|home|about|contact)/i)) {
+                    // Keep paragraphs that are substantial and not navigation
+                    if (text.length > 30 && 
+                        !text.match(/^(cookie|subscribe|follow|menu|home|about|contact|skip|jump|login|sign)/i) &&
+                        !text.match(/^(click|read more|share|like|comment)/i)) {
                         paraTexts.push(text);
                     }
                 });
-                result.content = paraTexts.join('\n\n');
-            } else {
-                result.content = clone.innerText || clone.textContent || '';
+                if (paraTexts.length > 0) {
+                    result.content = paraTexts.join('\n\n');
+                }
+            }
+            
+            // If paragraphs didn't work, get all text
+            if (!result.content || result.content.length < 100) {
+                const allText = clone.innerText || clone.textContent || '';
+                if (allText && allText.trim().length > 50) {
+                    result.content = allText;
+                }
             }
         }
     }
     
-    // Clean up content - more aggressive
+    // Clean up content - aggressive filtering
     if (result.content) {
         result.content = result.content
             .replace(/\n{3,}/g, '\n\n')  // Max 2 newlines
@@ -128,13 +151,27 @@ function extractContentDirectly() {
             .replace(/^\s+|\s+$/gm, '')   // Trim each line
             .trim();
         
-        // Remove very short lines that are likely navigation
+        // Remove very short lines and navigation-like text
         const lines = result.content.split('\n');
         const filteredLines = lines.filter(line => {
             const trimmed = line.trim();
-            return trimmed.length > 10 && !trimmed.match(/^(cookie|subscribe|follow|menu|home|about|contact|skip|jump)/i);
+            // Keep lines that are substantial or important
+            return trimmed.length > 15 || 
+                   trimmed.match(/^[A-Z][^.!?]*[.!?]$/) || // Complete sentences
+                   !trimmed.match(/^(cookie|subscribe|follow|menu|home|about|contact|skip|jump|login|sign|click|read more|share|like|comment|advertisement|ad|sponsored)/i);
         });
-        result.content = filteredLines.join('\n');
+        result.content = filteredLines.join('\n').trim();
+    }
+    
+    // Final check - ensure we have some content
+    if (!result.content || result.content.length < 20) {
+        // Last resort: get any text from body
+        try {
+            const bodyText = document.body.innerText || document.body.textContent || '';
+            if (bodyText && bodyText.trim().length > 20) {
+                result.content = bodyText.trim().substring(0, 5000); // Limit to 5000 chars
+            }
+        } catch(e) {}
     }
     
     return result;
@@ -244,8 +281,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         title: articleData ? articleData.title : 'No title'
                     });
                     
-                    // Lower threshold - accept even shorter content (30 chars minimum)
-                    if (articleData && articleData.content && typeof articleData.content === 'string' && contentLength > 30) {
+                    // ACCEPT ANY CONTENT - even if very short (minimum 10 chars)
+                    // This ensures we always send extracted content instead of falling back to URL (which causes 403)
+                    if (articleData && articleData.content && typeof articleData.content === 'string' && contentLength > 10) {
                         const contentData = {
                             url: articleData.url || currentUrl || '',
                             title: articleData.title || 'Untitled Article',
@@ -283,12 +321,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 extractionSuccess = true;
                                 return;
                             } else {
-                                // Still too long, fall back to URL method
+                                // Still too long - truncate more aggressively (50% instead of 80%)
                                 clearTimeout(redirectTimeout);
-                                console.log('Even truncated URL too long, using URL method');
-                                showStatus('info', 'Content too long, using URL method...');
-                                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-                                chrome.tabs.create({ url: analyzeUrl });
+                                console.log('Even truncated URL too long, truncating more aggressively...');
+                                const aggressiveMaxLength = Math.floor(contentLength * 0.5);
+                                if (typeof articleData.content === 'string') {
+                                    contentData.content = articleData.content.substring(0, aggressiveMaxLength) + '\n\n[Content significantly truncated due to URL length limit. Please visit the source page for full content.]';
+                                    const aggressiveJson = JSON.stringify(contentData);
+                                    const aggressiveEncoded = btoa(unescape(encodeURIComponent(aggressiveJson)));
+                                    const aggressiveUrl = `${streamlitUrl}?content=${encodeURIComponent(aggressiveEncoded)}`;
+                                    
+                                    if (aggressiveUrl.length <= 2000) {
+                                        showStatus('warning', 'Content heavily truncated. Opening News Checker...');
+                                        chrome.tabs.create({ url: aggressiveUrl });
+                                        setTimeout(() => window.close(), 500);
+                                        extractionSuccess = true;
+                                        return;
+                                    }
+                                }
+                                // If still too long, send just the first 1000 chars
+                                console.log('Content extremely long, sending first 1000 chars only');
+                                contentData.content = (typeof articleData.content === 'string' ? articleData.content.substring(0, 1000) : '') + '\n\n[Content truncated - first 1000 characters only. Visit source for full content.]';
+                                const minimalJson = JSON.stringify(contentData);
+                                const minimalEncoded = btoa(unescape(encodeURIComponent(minimalJson)));
+                                const minimalUrl = `${streamlitUrl}?content=${encodeURIComponent(minimalEncoded)}`;
+                                showStatus('warning', 'Sending partial content. Opening News Checker...');
+                                chrome.tabs.create({ url: minimalUrl });
                                 setTimeout(() => window.close(), 500);
                                 extractionSuccess = true;
                                 return;
@@ -302,11 +360,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                         extractionSuccess = true;
                         return;
                     } else {
-                        console.log('Extraction returned insufficient content:', {
+                        // Content too short - but still try to send it (better than URL method which causes 403)
+                        console.log('Extraction returned short content, but sending anyway to avoid 403:', {
                             hasContent: !!(articleData && articleData.content),
                             length: contentLength,
                             type: articleData && articleData.content ? typeof articleData.content : 'undefined'
                         });
+                        
+                        // Send even short content - it's better than nothing
+                        if (articleData && articleData.content && typeof articleData.content === 'string' && contentLength > 0) {
+                            const shortContentData = {
+                                url: articleData.url || currentUrl || '',
+                                title: articleData.title || 'Untitled Article',
+                                content: articleData.content + '\n\n[Note: Limited content extracted. Please check the source page for full article.]'
+                            };
+                            
+                            const shortJson = JSON.stringify(shortContentData);
+                            const shortEncoded = btoa(unescape(encodeURIComponent(shortJson)));
+                            const shortUrl = `${streamlitUrl}?content=${encodeURIComponent(shortEncoded)}`;
+                            
+                            clearTimeout(redirectTimeout);
+                            showStatus('warning', 'Limited content extracted. Opening News Checker...');
+                            chrome.tabs.create({ url: shortUrl });
+                            setTimeout(() => window.close(), 500);
+                            extractionSuccess = true;
+                            return;
+                        }
                     }
                 } else {
                     console.log('Extraction returned no result');
@@ -315,12 +394,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.error('Direct extraction failed:', directError);
             }
             
-            // If direct extraction didn't work, fall back to URL method immediately
+            // ONLY fall back to URL method if extraction completely failed
+            // This should rarely happen since we accept even very short content
             if (!extractionSuccess) {
                 clearTimeout(redirectTimeout);
-                console.log('Content extraction unavailable, using URL method');
+                console.log('Content extraction completely failed, using URL method (may hit 403)');
+                showStatus('error', 'Could not extract content. Using URL method (may fail on some sites)...');
                 const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-                showStatus('info', 'Opening News Checker...');
                 chrome.tabs.create({ url: analyzeUrl });
                 setTimeout(() => window.close(), 500);
                 extractionSuccess = true;
