@@ -219,10 +219,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Use Unicode-safe base64 encoding
                         const jsonString = JSON.stringify(contentData);
                         const encoded = btoa(unescape(encodeURIComponent(jsonString)));
-                        const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
+                        const fullUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
                         
-                        showStatus('success', 'Content extracted! Opening News Checker...');
-                        chrome.tabs.create({ url: analyzeUrl });
+                        // Check URL length
+                        if (fullUrl.length > 2000) {
+                            // URL too long - truncate or use URL method
+                            const maxContentLength = Math.floor(response.data.content.length * 0.8);
+                            contentData.content = response.data.content.substring(0, maxContentLength) + '\n\n[Content truncated due to URL length limit.]';
+                            
+                            const truncatedJson = JSON.stringify(contentData);
+                            const truncatedEncoded = btoa(unescape(encodeURIComponent(truncatedJson)));
+                            const truncatedUrl = `${streamlitUrl}?content=${encodeURIComponent(truncatedEncoded)}`;
+                            
+                            if (truncatedUrl.length <= 2000) {
+                                showStatus('warning', 'Content truncated. Opening News Checker...');
+                                chrome.tabs.create({ url: truncatedUrl });
+                            } else {
+                                showStatus('info', 'Content too long, using URL method...');
+                                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                                chrome.tabs.create({ url: analyzeUrl });
+                            }
+                        } else {
+                            showStatus('success', 'Content extracted! Opening News Checker...');
+                            chrome.tabs.create({ url: fullUrl });
+                        }
                         setTimeout(() => window.close(), 500);
                     } else {
                         // Fallback to URL method
