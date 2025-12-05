@@ -884,40 +884,148 @@ if analyze_button:
                         display_analysis_result(result)
                     else:
                         error_msg = result.get('error', 'Unknown error')
-                        st.error(f"❌ Analysis failed: {error_msg}")
                         
-                        # Show suggestion if available
-                        if result.get('suggestion'):
-                            st.info(f"💡 {result.get('suggestion')}")
-                        
-                        # Show fallback options
-                        with st.expander("🔧 Alternative Methods Available"):
-                            st.markdown("""
-                            **When a site blocks automated access, you can try:**
+                        # Check if it's a content extraction error
+                        if "Could not extract sufficient content" in error_msg or "extract" in error_msg.lower():
+                            st.error(f"❌ Could not fetch article content automatically")
                             
-                            1. **📝 Manual Paste** (Recommended - Fastest)
-                               - Switch to "Paste Article Content" above
-                               - Copy article from website
-                               - Paste and analyze
+                            # Show prominent manual paste option
+                            st.warning("""
+                            **⚠️ Website blocking detected or unsupported page structure**
                             
-                            2. **📰 Newspaper3k Library**
-                               - Already installed and auto-tries
-                               - Works for many news sites
-                            
-                            3. **📡 RSS Feed**
-                               - Auto-checks for RSS feeds
-                               - Good for news sites
-                            
-                            4. **🌐 Browser Automation** (Advanced)
-                               - Install Selenium: `pip install selenium`
-                               - Install Playwright: `pip install playwright && playwright install chromium`
-                               - Handles JavaScript-heavy sites
-                            
-                            5. **📋 Read Documentation**
-                               - See `ADVANCED_FETCHING.md` for details
+                            This is common on Streamlit Cloud. The website may be blocking automated access.
                             """)
-                        
-                        st.info("💡 Tip: Use the 'Paste Article Content' option above for the most reliable method.")
+                            
+                            st.info("""
+                            **✅ SOLUTION: Use Manual Paste**
+                            
+                            1. **Switch to "📝 Paste Article Content"** (radio button above)
+                            2. Copy the article text from the website
+                            3. Paste it into the text area
+                            4. Click "Analyze News"
+                            
+                            This method works 100% of the time and is often faster!
+                            """)
+                            
+                            # Show the manual paste section prominently
+                            st.markdown("---")
+                            st.markdown("### 📝 Quick Fix: Paste Article Content Below")
+                            
+                            manual_title_fallback = st.text_input(
+                                "📰 Article Title (Optional)",
+                                key="fallback_title",
+                                placeholder="Enter the article title",
+                                help="Title of the news article"
+                            )
+                            manual_content_fallback = st.text_area(
+                                "📝 Paste Article Content Here",
+                                key="fallback_content",
+                                placeholder="Copy and paste the full article text here...",
+                                height=300,
+                                help="This works when URL fetching fails"
+                            )
+                            
+                            if st.button("🔍 Analyze Pasted Content", type="primary", key="fallback_analyze"):
+                                if manual_content_fallback and len(manual_content_fallback.strip()) >= 50:
+                                    with st.spinner("🧠 Analyzing pasted content... This may take 30-60 seconds."):
+                                        try:
+                                            article_data = {
+                                                "success": True,
+                                                "title": manual_title_fallback or "Manually Entered Article",
+                                                "content": manual_content_fallback,
+                                                "url": url_input or "manual-input"
+                                            }
+                                            
+                                            rules = st.session_state.analyzer.load_rules()
+                                            prompt = st.session_state.analyzer.create_analysis_prompt(article_data, rules)
+                                            
+                                            response = st.session_state.analyzer.client.chat.completions.create(
+                                                model=st.session_state.analyzer.model,
+                                                messages=[
+                                                    {
+                                                        "role": "system",
+                                                        "content": "You are a CRITICAL OPPOSITION REPORTER and investigative journalist analyzing Indian news. Your job is to QUESTION EVERYTHING, identify what's MISSING, challenge claims, and demand answers that Indian citizens deserve. Don't accept reports at face value - be skeptical, ask hard questions, and judge based on what answers the report provides."
+                                                    },
+                                                    {
+                                                        "role": "user",
+                                                        "content": prompt
+                                                    }
+                                                ],
+                                                temperature=0.4,
+                                                max_tokens=4000
+                                            )
+                                            
+                                            analysis_text = response.choices[0].message.content
+                                            
+                                            try:
+                                                if "```json" in analysis_text:
+                                                    json_start = analysis_text.find("```json") + 7
+                                                    json_end = analysis_text.find("```", json_start)
+                                                    analysis_text = analysis_text[json_start:json_end].strip()
+                                                elif "```" in analysis_text:
+                                                    json_start = analysis_text.find("```") + 3
+                                                    json_end = analysis_text.find("```", json_start)
+                                                    analysis_text = analysis_text[json_start:json_end].strip()
+                                                
+                                                analysis_json = json.loads(analysis_text)
+                                                analysis_json = st.session_state.analyzer.refine_category_based_on_scores(analysis_json, article_data)
+                                            except json.JSONDecodeError:
+                                                analysis_json = {"raw_response": analysis_text}
+                                            
+                                            result = {
+                                                "success": True,
+                                                "url": url_input or "manual-input",
+                                                "article": article_data,
+                                                "analysis": analysis_json
+                                            }
+                                            
+                                            st.session_state.last_result = result
+                                            st.success("✅ Analysis complete!")
+                                            display_analysis_result(result)
+                                            
+                                        except Exception as e:
+                                            st.error(f"❌ Error: {str(e)}")
+                                            import traceback
+                                            with st.expander("🔍 Error Details"):
+                                                st.code(traceback.format_exc())
+                                else:
+                                    st.warning("⚠️ Please paste article content (at least 50 characters)")
+                        else:
+                            # Other types of errors
+                            st.error(f"❌ Analysis failed: {error_msg}")
+                            
+                            # Show suggestion if available
+                            if result.get('suggestion'):
+                                st.info(f"💡 {result.get('suggestion')}")
+                            
+                            # Show fallback options
+                            with st.expander("🔧 Alternative Methods Available"):
+                                st.markdown("""
+                                **When a site blocks automated access, you can try:**
+                                
+                                1. **📝 Manual Paste** (Recommended - Fastest)
+                                   - Switch to "Paste Article Content" above
+                                   - Copy article from website
+                                   - Paste and analyze
+                                
+                                2. **📰 Newspaper3k Library**
+                                   - Already installed and auto-tries
+                                   - Works for many news sites
+                                
+                                3. **📡 RSS Feed**
+                                   - Auto-checks for RSS feeds
+                                   - Good for news sites
+                                
+                                4. **🌐 Browser Automation** (Advanced)
+                                   - Install Selenium: `pip install selenium`
+                                   - Install Playwright: `pip install playwright && playwright install chromium`
+                                   - Handles JavaScript-heavy sites
+                                
+                                5. **📋 Read Documentation**
+                                   - See `ADVANCED_FETCHING.md` for details
+                                """)
+                            
+                            st.info("💡 Tip: Use the 'Paste Article Content' option above for the most reliable method.")
             
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
