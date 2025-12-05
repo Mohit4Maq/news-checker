@@ -134,86 +134,78 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Wait a moment for script to initialize
             await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Send message to content script to extract content
-            chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, async (response) => {
-                if (chrome.runtime.lastError) {
-                    // Content script might not be injected, try direct extraction
-                    console.log('Content script message failed, trying direct extraction...');
-                    
-                    // Try direct script injection to extract content
-                    try {
-                        const results = await chrome.scripting.executeScript({
-                            target: { tabId: tab.id },
-                            func: extractContentDirectly
-                        });
-                        
-                        if (results && results[0] && results[0].result) {
-                            const articleData = results[0].result;
-                            
-                            if (articleData.content && articleData.content.length > 50) {
-                                const contentData = {
-                                    url: articleData.url,
-                                    title: articleData.title,
-                                    content: articleData.content
-                                };
-                                
-                                const encoded = btoa(JSON.stringify(contentData));
-                                const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
-                                chrome.tabs.create({ url: analyzeUrl });
-                                showStatus('success', 'Content extracted! Opening News Checker...');
-                                setTimeout(() => window.close(), 1500);
-                                return;
-                            }
-                        }
-                    } catch (directError) {
-                        console.log('Direct extraction failed:', directError);
-                    }
-                    
-                    // Final fallback to URL method
-                    console.log('All extraction methods failed, using URL method');
-                    const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-                    chrome.tabs.create({ url: analyzeUrl });
-                    showStatus('success', 'Opening News Checker...');
-                    setTimeout(() => window.close(), 1000);
-                    return;
-                }
+            // Try direct extraction first (more reliable)
+            try {
+                const results = await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    func: extractContentDirectly
+                });
                 
-                if (response && response.success && response.data) {
-                    const articleData = response.data;
+                if (results && results[0] && results[0].result) {
+                    const articleData = results[0].result;
                     
-                    // Check if we got meaningful content
                     if (articleData.content && articleData.content.length > 50) {
-                        // Send content to Streamlit via URL parameter (base64 encoded)
-                        // Streamlit will decode and use it
                         const contentData = {
                             url: articleData.url,
                             title: articleData.title,
                             content: articleData.content
                         };
                         
-                        // Encode as base64 to pass via URL
                         const encoded = btoa(JSON.stringify(contentData));
                         const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
                         
-                        chrome.tabs.create({ url: analyzeUrl });
                         showStatus('success', 'Content extracted! Opening News Checker...');
-                    } else {
-                        // Fallback to URL method if content extraction failed
-                        showStatus('warning', 'Could not extract content, using URL method...');
-                        const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
                         chrome.tabs.create({ url: analyzeUrl });
+                        setTimeout(() => window.close(), 500);
+                        return;
                     }
-                } else {
-                    // Fallback to URL method
-                    showStatus('warning', 'Extraction failed, using URL method...');
-                    const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-                    chrome.tabs.create({ url: analyzeUrl });
                 }
-                
-                setTimeout(() => {
-                    window.close();
-                }, 1500);
-            });
+            } catch (directError) {
+                console.log('Direct extraction failed, trying message method:', directError);
+            }
+            
+            // Fallback: Try content script message method
+            try {
+                chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, (response) => {
+                    if (chrome.runtime.lastError || !response || !response.success) {
+                        // Fallback to URL method
+                        console.log('Message method failed, using URL fallback');
+                        const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                        showStatus('success', 'Opening News Checker...');
+                        chrome.tabs.create({ url: analyzeUrl });
+                        setTimeout(() => window.close(), 500);
+                        return;
+                    }
+                    
+                    if (response.data && response.data.content && response.data.content.length > 50) {
+                        const contentData = {
+                            url: response.data.url,
+                            title: response.data.title,
+                            content: response.data.content
+                        };
+                        
+                        const encoded = btoa(JSON.stringify(contentData));
+                        const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
+                        
+                        showStatus('success', 'Content extracted! Opening News Checker...');
+                        chrome.tabs.create({ url: analyzeUrl });
+                        setTimeout(() => window.close(), 500);
+                    } else {
+                        // Fallback to URL method
+                        const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                        showStatus('success', 'Opening News Checker...');
+                        chrome.tabs.create({ url: analyzeUrl });
+                        setTimeout(() => window.close(), 500);
+                    }
+                });
+            } catch (messageError) {
+                // Final fallback to URL method
+                console.log('All methods failed, using URL fallback');
+                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                showStatus('success', 'Opening News Checker...');
+                chrome.tabs.create({ url: analyzeUrl });
+                setTimeout(() => window.close(), 500);
+            }
             
         } catch (error) {
             showStatus('error', 'Error: ' + error.message);
