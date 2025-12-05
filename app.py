@@ -1070,14 +1070,6 @@ with st.sidebar:
     
     if st.session_state.analyzer:
         st.success("✅ Analyzer Ready")
-        
-        # Test API key
-        if st.button("🔑 Test API Key"):
-            with st.spinner("Testing..."):
-                if st.session_state.analyzer.test_api_key():
-                    st.success("✅ API key is working!")
-                else:
-                    st.error("❌ API key test failed!")
     else:
         st.error("❌ Analyzer not initialized")
         st.stop()
