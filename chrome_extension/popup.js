@@ -222,6 +222,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (results && results[0] && results[0].result) {
                     const articleData = results[0].result;
                     
+                    console.log('Extraction result:', {
+                        hasContent: !!articleData.content,
+                        contentLength: articleData.content ? articleData.content.length : 0,
+                        title: articleData.title
+                    });
+                    
                     // Lower threshold - accept even shorter content (30 chars minimum)
                     if (articleData.content && articleData.content.length > 30) {
                         const contentData = {
@@ -272,18 +278,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             } catch (directError) {
-                console.log('Direct extraction failed, trying message method:', directError);
+                console.log('Direct extraction failed:', directError);
             }
             
-            // If direct extraction didn't return content, try message method as last resort
-            // But prefer URL method over message method for reliability
-            if (true) {  // Always try URL method if direct extraction didn't work
-                console.log('Direct extraction returned no content, using URL method');
-                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-                showStatus('info', 'Using URL method (content extraction unavailable)...');
-                chrome.tabs.create({ url: analyzeUrl });
-                setTimeout(() => window.close(), 500);
-            } else {
+            // If direct extraction didn't return content, fall back to URL method
+            // This will trigger 403 on some sites, but Streamlit will show manual paste option
+            console.log('Content extraction unavailable, using URL method (may hit 403 - use manual paste)');
+            const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+            showStatus('info', 'Opening News Checker (may need manual paste if site blocks)...');
+            chrome.tabs.create({ url: analyzeUrl });
+            setTimeout(() => window.close(), 500);
+            
+            /* Disabled message method - less reliable than direct extraction
+            if (false) {
                 // Fallback: Try content script message method (disabled - less reliable)
                 try {
                     chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, (response) => {
