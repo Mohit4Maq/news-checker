@@ -832,6 +832,34 @@ with st.sidebar:
 # Main content area
 st.markdown("---")
 
+# Check for URL parameter (from Chrome extension or direct link)
+url_param = st.query_params.get("url", None)
+if url_param:
+    st.info(f"📰 Article URL received: {url_param[:80]}...")
+    # Auto-analyze if URL parameter is present
+    if 'auto_analyzed' not in st.session_state:
+        st.session_state.auto_analyzed = True
+        with st.spinner("🔍 Fetching and analyzing article... This may take 30-60 seconds."):
+            try:
+                result = st.session_state.analyzer.analyze_news(url_param)
+                st.session_state.last_result = result
+                
+                if result.get("success"):
+                    st.success("✅ Analysis complete!")
+                    if result.get("article", {}).get("method"):
+                        st.info(f"📡 Fetched using: {result['article']['method']}")
+                    display_analysis_result(result)
+                else:
+                    error_msg = result.get('error', 'Unknown error')
+                    st.error(f"❌ Analysis failed: {error_msg}")
+                    if result.get('suggestion'):
+                        st.info(f"💡 {result.get('suggestion')}")
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
+
 # Input method selection
 input_method = st.radio(
     "Choose input method:",
