@@ -22,9 +22,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // Save Streamlit URL when changed
-    document.getElementById('streamlitUrl').addEventListener('change', (e) => {
-        chrome.storage.sync.set({ streamlitUrl: e.target.value });
+    // Save Streamlit URL when changed (also on blur for better UX)
+    const streamlitUrlInput = document.getElementById('streamlitUrl');
+    streamlitUrlInput.addEventListener('change', (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+            chrome.storage.sync.set({ streamlitUrl: url });
+            showStatus('success', 'URL saved!');
+        }
+    });
+    streamlitUrlInput.addEventListener('blur', (e) => {
+        const url = e.target.value.trim();
+        if (url) {
+            chrome.storage.sync.set({ streamlitUrl: url });
+        }
     });
     
     // Analyze button
