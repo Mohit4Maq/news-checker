@@ -868,9 +868,11 @@ input_method = st.radio(
 )
 
 if input_method == "🔗 Enter URL":
-    # URL input
+    # URL input - pre-fill if URL parameter exists
+    default_url = url_param if url_param else ""
     url_input = st.text_input(
         "🔗 Enter News Article URL",
+        value=default_url,
         placeholder="https://example.com/news-article",
         help="Paste the full URL of the news article you want to analyze"
     )
