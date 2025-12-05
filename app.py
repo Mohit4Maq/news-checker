@@ -1139,32 +1139,32 @@ if analyze_button:
                                 
                                 # Show fallback options
                                 with st.expander("🔧 Alternative Methods Available"):
-                                st.markdown("""
-                                **When a site blocks automated access, you can try:**
+                                    st.markdown("""
+                                    **When a site blocks automated access, you can try:**
+                                    
+                                    1. **📝 Manual Paste** (Recommended - Fastest)
+                                       - Switch to "Paste Article Content" above
+                                       - Copy article from website
+                                       - Paste and analyze
+                                    
+                                    2. **📰 Newspaper3k Library**
+                                       - Already installed and auto-tries
+                                       - Works for many news sites
+                                    
+                                    3. **📡 RSS Feed**
+                                       - Auto-checks for RSS feeds
+                                       - Good for news sites
+                                    
+                                    4. **🌐 Browser Automation** (Advanced)
+                                       - Install Selenium: `pip install selenium`
+                                       - Install Playwright: `pip install playwright && playwright install chromium`
+                                       - Handles JavaScript-heavy sites
+                                    
+                                    5. **📋 Read Documentation**
+                                       - See `ADVANCED_FETCHING.md` for details
+                                    """)
                                 
-                                1. **📝 Manual Paste** (Recommended - Fastest)
-                                   - Switch to "Paste Article Content" above
-                                   - Copy article from website
-                                   - Paste and analyze
-                                
-                                2. **📰 Newspaper3k Library**
-                                   - Already installed and auto-tries
-                                   - Works for many news sites
-                                
-                                3. **📡 RSS Feed**
-                                   - Auto-checks for RSS feeds
-                                   - Good for news sites
-                                
-                                4. **🌐 Browser Automation** (Advanced)
-                                   - Install Selenium: `pip install selenium`
-                                   - Install Playwright: `pip install playwright && playwright install chromium`
-                                   - Handles JavaScript-heavy sites
-                                
-                                5. **📋 Read Documentation**
-                                   - See `ADVANCED_FETCHING.md` for details
-                                """)
-                            
-                            st.info("💡 Tip: Use the 'Paste Article Content' option above for the most reliable method.")
+                                st.info("💡 Tip: Use the 'Paste Article Content' option above for the most reliable method.")
             
                 except Exception as e:
                     st.error(f"❌ Error: {str(e)}")
