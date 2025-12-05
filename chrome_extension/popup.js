@@ -247,8 +247,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Lower threshold - accept even shorter content (30 chars minimum)
                     if (articleData && articleData.content && typeof articleData.content === 'string' && contentLength > 30) {
                         const contentData = {
-                            url: articleData.url,
-                            title: articleData.title,
+                            url: articleData.url || currentUrl || '',
+                            title: articleData.title || 'Untitled Article',
                             content: articleData.content
                         };
                         
@@ -264,8 +264,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                             console.log('URL too long (' + fullUrl.length + ' chars), truncating content...');
                             
                             // Try with truncated content (keep first 80% to leave room for encoding overhead)
-                            const maxContentLength = Math.floor(articleData.content.length * 0.8);
-                            contentData.content = articleData.content.substring(0, maxContentLength) + '\n\n[Content truncated due to URL length limit. Full content available on source page.]';
+                            const maxContentLength = Math.floor(contentLength * 0.8);
+                            if (typeof articleData.content === 'string') {
+                                contentData.content = articleData.content.substring(0, maxContentLength) + '\n\n[Content truncated due to URL length limit. Full content available on source page.]';
+                            } else {
+                                throw new Error('Content is not a string');
+                            }
                             
                             const truncatedJson = JSON.stringify(contentData);
                             const truncatedEncoded = btoa(unescape(encodeURIComponent(truncatedJson)));
