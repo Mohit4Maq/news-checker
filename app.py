@@ -839,9 +839,18 @@ if content_param:
         import base64
         import json
         
-        # Decode base64 content from extension
-        decoded = base64.b64decode(content_param).decode('utf-8')
-        article_data = json.loads(decoded)
+        # Decode base64 content from extension (Unicode-safe)
+        try:
+            # Decode URL encoding first
+            decoded_param = content_param
+            # Decode base64
+            decoded_bytes = base64.b64decode(decoded_param)
+            # Decode UTF-8
+            decoded = decoded_bytes.decode('utf-8')
+            article_data = json.loads(decoded)
+        except Exception as e:
+            st.error(f"❌ Error decoding content: {str(e)}")
+            raise
         
         st.info(f"📰 Article content received from extension: {article_data.get('title', 'Untitled')[:60]}...")
         

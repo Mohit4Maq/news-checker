@@ -151,7 +151,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             content: articleData.content
                         };
                         
-                        const encoded = btoa(JSON.stringify(contentData));
+                        // Use Unicode-safe base64 encoding
+                        const jsonString = JSON.stringify(contentData);
+                        const encoded = btoa(unescape(encodeURIComponent(jsonString)));
                         const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
                         
                         showStatus('success', 'Content extracted! Opening News Checker...');
@@ -184,7 +186,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                             content: response.data.content
                         };
                         
-                        const encoded = btoa(JSON.stringify(contentData));
+                        // Use Unicode-safe base64 encoding
+                        const jsonString = JSON.stringify(contentData);
+                        const encoded = btoa(unescape(encodeURIComponent(jsonString)));
                         const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
                         
                         showStatus('success', 'Content extracted! Opening News Checker...');
