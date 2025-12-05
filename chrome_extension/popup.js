@@ -1,5 +1,5 @@
 // Default Streamlit app URL (user can change this)
-const DEFAULT_STREAMLIT_URL = 'https://your-app-name.streamlit.app';
+const DEFAULT_STREAMLIT_URL = 'https://newsfactchecker.streamlit.app';
 
 // Get current tab URL
 document.addEventListener('DOMContentLoaded', async () => {
