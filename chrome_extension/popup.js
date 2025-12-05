@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // Analyze button
+    // Analyze button - NEW: Extract content from page and send to Streamlit
     document.getElementById('analyzeBtn').addEventListener('click', async () => {
         const streamlitUrl = document.getElementById('streamlitUrl').value || DEFAULT_STREAMLIT_URL;
         const statusDiv = document.getElementById('status');
@@ -48,26 +48,75 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        // Remove the check that blocks using the default URL
-        // The default URL is already set correctly, so allow it
         if (!streamlitUrl || streamlitUrl.trim() === '') {
             showStatus('error', 'Please set your Streamlit app URL in the settings above.');
             return;
         }
         
         try {
-            // Open Streamlit app with URL parameter
-            const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-            chrome.tabs.create({ url: analyzeUrl });
+            showStatus('info', 'Extracting article content...');
             
-            showStatus('success', 'Opening News Checker...');
+            // Get active tab to send message to content script
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
-            // Close popup after a short delay
-            setTimeout(() => {
-                window.close();
-            }, 1000);
+            // Send message to content script to extract content
+            chrome.tabs.sendMessage(tab.id, { action: 'extractContent' }, async (response) => {
+                if (chrome.runtime.lastError) {
+                    // Content script might not be injected, fallback to URL method
+                    console.log('Content script not available, using URL method');
+                    const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                    chrome.tabs.create({ url: analyzeUrl });
+                    showStatus('success', 'Opening News Checker...');
+                    setTimeout(() => window.close(), 1000);
+                    return;
+                }
+                
+                if (response && response.success && response.data) {
+                    const articleData = response.data;
+                    
+                    // Check if we got meaningful content
+                    if (articleData.content && articleData.content.length > 50) {
+                        // Send content to Streamlit via URL parameter (base64 encoded)
+                        // Streamlit will decode and use it
+                        const contentData = {
+                            url: articleData.url,
+                            title: articleData.title,
+                            content: articleData.content
+                        };
+                        
+                        // Encode as base64 to pass via URL
+                        const encoded = btoa(JSON.stringify(contentData));
+                        const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
+                        
+                        chrome.tabs.create({ url: analyzeUrl });
+                        showStatus('success', 'Content extracted! Opening News Checker...');
+                    } else {
+                        // Fallback to URL method if content extraction failed
+                        showStatus('warning', 'Could not extract content, using URL method...');
+                        const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                        chrome.tabs.create({ url: analyzeUrl });
+                    }
+                } else {
+                    // Fallback to URL method
+                    showStatus('warning', 'Extraction failed, using URL method...');
+                    const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                    chrome.tabs.create({ url: analyzeUrl });
+                }
+                
+                setTimeout(() => {
+                    window.close();
+                }, 1500);
+            });
+            
         } catch (error) {
             showStatus('error', 'Error: ' + error.message);
+            // Fallback to URL method
+            try {
+                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                chrome.tabs.create({ url: analyzeUrl });
+            } catch (e) {
+                console.error('Fallback also failed:', e);
+            }
         }
     });
     

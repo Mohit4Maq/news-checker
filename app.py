@@ -832,9 +832,94 @@ with st.sidebar:
 # Main content area
 st.markdown("---")
 
-# Check for URL parameter (from Chrome extension or direct link)
+# Check for content parameter (from Chrome extension - NEW METHOD)
+content_param = st.query_params.get("content", None)
+if content_param:
+    try:
+        import base64
+        import json
+        
+        # Decode base64 content from extension
+        decoded = base64.b64decode(content_param).decode('utf-8')
+        article_data = json.loads(decoded)
+        
+        st.info(f"📰 Article content received from extension: {article_data.get('title', 'Untitled')[:60]}...")
+        
+        # Auto-analyze if content parameter is present
+        if 'auto_analyzed' not in st.session_state:
+            st.session_state.auto_analyzed = True
+            with st.spinner("🧠 Analyzing article content... This may take 30-60 seconds."):
+                try:
+                    # Use the content directly - no fetching needed!
+                    article_data_structured = {
+                        "success": True,
+                        "title": article_data.get('title', 'No title found'),
+                        "content": article_data.get('content', ''),
+                        "url": article_data.get('url', 'extension-input')
+                    }
+                    
+                    # Load rules and create prompt
+                    rules = st.session_state.analyzer.load_rules()
+                    prompt = st.session_state.analyzer.create_analysis_prompt(article_data_structured, rules)
+                    
+                    # Call OpenAI API
+                    response = st.session_state.analyzer.client.chat.completions.create(
+                        model=st.session_state.analyzer.model,
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": "You are a CRITICAL OPPOSITION REPORTER and investigative journalist analyzing Indian news. Your job is to QUESTION EVERYTHING, identify what's MISSING, challenge claims, and demand answers that Indian citizens deserve. Don't accept reports at face value - be skeptical, ask hard questions, and judge based on what answers the report provides."
+                            },
+                            {
+                                "role": "user",
+                                "content": prompt
+                            }
+                        ],
+                        temperature=0.4,
+                        max_tokens=4000
+                    )
+                    
+                    analysis_text = response.choices[0].message.content
+                    
+                    # Parse JSON
+                    try:
+                        if "```json" in analysis_text:
+                            json_start = analysis_text.find("```json") + 7
+                            json_end = analysis_text.find("```", json_start)
+                            analysis_text = analysis_text[json_start:json_end].strip()
+                        elif "```" in analysis_text:
+                            json_start = analysis_text.find("```") + 3
+                            json_end = analysis_text.find("```", json_start)
+                            analysis_text = analysis_text[json_start:json_end].strip()
+                        
+                        analysis_json = json.loads(analysis_text)
+                        analysis_json = st.session_state.analyzer.refine_category_based_on_scores(analysis_json, article_data_structured)
+                    except json.JSONDecodeError:
+                        analysis_json = {"raw_response": analysis_text}
+                    
+                    result = {
+                        "success": True,
+                        "url": article_data.get('url', 'extension-input'),
+                        "article": article_data_structured,
+                        "analysis": analysis_json
+                    }
+                    
+                    st.session_state.last_result = result
+                    st.success("✅ Analysis complete! (Content extracted directly from page - no fetching needed)")
+                    display_analysis_result(result)
+                    
+                except Exception as e:
+                    st.error(f"❌ Error: {str(e)}")
+                    import traceback
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
+    except Exception as e:
+        st.warning(f"⚠️ Could not decode content parameter: {e}. Falling back to URL method...")
+        content_param = None
+
+# Check for URL parameter (from Chrome extension or direct link - FALLBACK METHOD)
 url_param = st.query_params.get("url", None)
-if url_param:
+if url_param and not content_param:
     st.info(f"📰 Article URL received: {url_param[:80]}...")
     # Auto-analyze if URL parameter is present
     if 'auto_analyzed' not in st.session_state:
