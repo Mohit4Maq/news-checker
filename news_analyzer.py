@@ -91,19 +91,25 @@ class NewsAnalyzer:
         
         try:
             article = Article(url, language='en')
+            # Set longer timeout for Streamlit Cloud
+            article.config.request_timeout = 20
+            article.config.browser_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            
             article.download()
             article.parse()
             
-            if article.text and len(article.text) > 100:
+            # Lower threshold - accept if we have any reasonable content
+            if article.text and len(article.text.strip()) > 50:
                 return {
                     "success": True,
                     "title": article.title or "No title found",
-                    "content": article.text,
+                    "content": article.text.strip(),
                     "url": url,
                     "method": "newspaper3k"
                 }
         except Exception as e:
-            return {"success": False, "error": f"newspaper3k error: {str(e)}"}
+            # Don't return error immediately - might still work with other methods
+            pass
         return {"success": False, "error": "newspaper3k failed to extract content"}
     
     def fetch_with_selenium(self, url: str) -> Dict[str, Any]:
@@ -470,10 +476,18 @@ class NewsAnalyzer:
     
     def fetch_article_content(self, url: str, use_fallbacks: bool = True) -> Dict[str, Any]:
         """Fetch and extract content from a news URL with multiple fallback methods"""
+        
+        # Try newspaper3k FIRST (works better on Streamlit Cloud for many sites)
+        if use_fallbacks:
+            print("   Trying newspaper3k first (best for Streamlit Cloud)...")
+            newspaper_result = self.fetch_with_newspaper3k(url)
+            if newspaper_result.get("success") and len(newspaper_result.get("content", "")) > 100:
+                return newspaper_result
+        
         # Comprehensive headers to mimic a real browser
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
@@ -481,7 +495,9 @@ class NewsAnalyzer:
             'Sec-Fetch-Dest': 'document',
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
             'Cache-Control': 'max-age=0',
+            'DNT': '1',
         }
         
         session = requests.Session()
@@ -489,7 +505,7 @@ class NewsAnalyzer:
         
         try:
             # Try with session first
-            response = session.get(url, timeout=15, allow_redirects=True)
+            response = session.get(url, timeout=20, allow_redirects=True)
             
             # Handle common error codes
             if response.status_code == 401:
@@ -571,7 +587,7 @@ class NewsAnalyzer:
                         title_text = title_text.strip()
                         break
             
-            # Extract main content (try common article selectors)
+            # Extract main content (try common article selectors - EXPANDED LIST)
             article_content = None
             content_selectors = [
                 'article',
@@ -581,38 +597,73 @@ class NewsAnalyzer:
                 '.post-content',
                 '.story-body',
                 '.content-body',
+                '.entry-content',
+                '.post-body',
+                '.article-text',
+                '.article-main',
+                '.story-content',
+                '.article-wrapper',
+                '.content-wrapper',
                 '[class*="article"]',
                 '[class*="story"]',
                 '[class*="content"]',
+                '[class*="post"]',
+                '[class*="entry"]',
                 'main',
-                '.main-content'
+                '.main-content',
+                '#main-content',
+                '#article-content',
+                '#story-content',
+                '[id*="article"]',
+                '[id*="content"]',
+                '[id*="story"]'
             ]
             
             for selector in content_selectors:
-                article = soup.select_one(selector)
-                if article:
-                    # Get text but preserve some structure
-                    article_content = article.get_text(separator='\n', strip=True)
-                    if len(article_content) > 200:  # Ensure we got substantial content
-                        break
+                try:
+                    article = soup.select_one(selector)
+                    if article:
+                        # Get text but preserve some structure
+                        article_content = article.get_text(separator='\n', strip=True)
+                        # Lower threshold - accept if we have reasonable content
+                        if len(article_content) > 150:
+                            break
+                except:
+                    continue
             
-            if not article_content or len(article_content) < 200:
-                # Fallback: try to find the largest text block
-                all_text_blocks = soup.find_all(['p', 'div'], string=True)
-                if all_text_blocks:
-                    # Get text from paragraphs
-                    paragraphs = soup.find_all('p')
-                    if paragraphs:
-                        article_content = '\n'.join([p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True)])
+            if not article_content or len(article_content) < 150:
+                # Try multiple paragraph extraction strategies
+                paragraphs = soup.find_all('p')
+                if paragraphs:
+                    para_texts = [p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True) and len(p.get_text(strip=True)) > 20]
+                    if para_texts:
+                        article_content = '\n'.join(para_texts)
             
             if not article_content or len(article_content) < 100:
-                # Last resort: get body text
+                # Try divs with text content
+                divs = soup.find_all('div', class_=lambda x: x and ('content' in x.lower() or 'article' in x.lower() or 'story' in x.lower()))
+                if divs:
+                    div_texts = []
+                    for div in divs:
+                        text = div.get_text(separator='\n', strip=True)
+                        if len(text) > 100:
+                            div_texts.append(text)
+                    if div_texts:
+                        # Use the longest div
+                        article_content = max(div_texts, key=len)
+            
+            if not article_content or len(article_content) < 80:
+                # Last resort: get body text but filter out navigation/menu items
                 body = soup.find('body')
                 if body:
+                    # Remove common non-content elements
+                    for elem in body.find_all(['nav', 'header', 'footer', 'aside', 'script', 'style']):
+                        elem.decompose()
                     article_content = body.get_text(separator='\n', strip=True)
             
-            if not article_content or len(article_content) < 50:
-                # Try fallback methods if enabled
+            # Lower threshold - accept content if we have at least 80 characters
+            if not article_content or len(article_content) < 80:
+                # Try fallback methods if enabled (more aggressively)
                 if use_fallbacks:
                     fallback_methods = [
                         ("newspaper3k", self.fetch_with_newspaper3k),
@@ -623,7 +674,26 @@ class NewsAnalyzer:
                         print(f"   Trying fallback: {method_name}...")
                         result = method_func(url)
                         if result.get("success"):
-                            return result
+                            # Accept even if content is shorter than ideal
+                            content = result.get("content", "")
+                            if content and len(content) > 50:
+                                return result
+                
+                # If we got SOME content but it's short, still return it
+                if article_content and len(article_content) >= 50:
+                    # Clean up the content
+                    lines = [line.strip() for line in article_content.split('\n') if line.strip() and len(line.strip()) > 10]
+                    article_content = '\n'.join(lines[:100])  # Limit to first 100 paragraphs
+                    
+                    return {
+                        "success": True,
+                        "title": title_text,
+                        "content": article_content,
+                        "url": url,
+                        "content_length": len(article_content),
+                        "method": "requests (partial extraction)",
+                        "warning": "Content may be incomplete - consider manual paste for full article"
+                    }
                 
                 return {
                     "success": False,
@@ -632,18 +702,54 @@ class NewsAnalyzer:
                     "suggestion": "Try copying the article content manually, use browser automation (Selenium/Playwright), or use a different news source."
                 }
             
-            # Clean up the content
-            lines = [line.strip() for line in article_content.split('\n') if line.strip() and len(line.strip()) > 10]
-            article_content = '\n'.join(lines[:150])  # Limit to first 150 paragraphs
+            # Clean up the content - be more lenient with filtering
+            lines = [line.strip() for line in article_content.split('\n') if line.strip() and len(line.strip()) > 5]
+            # Remove very short lines that are likely navigation/menu items
+            filtered_lines = []
+            for line in lines:
+                # Skip lines that look like navigation (short, all caps, or common menu items)
+                if len(line) > 8 and not (line.isupper() and len(line) < 30):
+                    filtered_lines.append(line)
             
-            return {
-                "success": True,
-                "title": title_text,
-                "content": article_content,
-                "url": url,
-                "content_length": len(article_content),
-                "method": "requests"
-            }
+            article_content = '\n'.join(filtered_lines[:200])  # Limit to first 200 paragraphs
+            
+            # If content is still substantial, return success
+            if len(article_content) >= 80:
+                return {
+                    "success": True,
+                    "title": title_text,
+                    "content": article_content,
+                    "url": url,
+                    "content_length": len(article_content),
+                    "method": "requests"
+                }
+            else:
+                # Content too short, try fallbacks
+                if use_fallbacks:
+                    fallback_methods = [
+                        ("newspaper3k", self.fetch_with_newspaper3k),
+                        ("RSS feed", self.try_rss_feed),
+                    ]
+                    
+                    for method_name, method_func in fallback_methods:
+                        print(f"   Trying fallback: {method_name}...")
+                        result = method_func(url)
+                        if result.get("success"):
+                            content = result.get("content", "")
+                            if content and len(content) > 50:
+                                return result
+                
+                # Return partial content if we have something
+                if article_content and len(article_content) >= 50:
+                    return {
+                        "success": True,
+                        "title": title_text,
+                        "content": article_content,
+                        "url": url,
+                        "content_length": len(article_content),
+                        "method": "requests (partial)",
+                        "warning": "Content may be incomplete"
+                    }
             
         except requests.exceptions.Timeout:
             return {
