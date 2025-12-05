@@ -261,53 +261,58 @@ def display_analysis_result(result):
     # Citizen Accountability Section
     if "citizen_accountability" in analysis:
         st.markdown("---")
-        st.markdown("## 👥 CITIZEN ACCOUNTABILITY - What Should Have Been Reported")
-        st.markdown("### Questions, Topics, and Information Citizens Need")
+        st.markdown("## 👥 CITIZEN ACCOUNTABILITY")
+        st.markdown("### What Should Have Been Reported for Indian Citizens")
         
         ca = analysis["citizen_accountability"]
+        
+        # Important highlights first
+        if "real_citizen_impact" in ca and ca.get("real_citizen_impact"):
+            st.error(f"**💡 Real Impact on Citizens (Not Covered):** {ca.get('real_citizen_impact')}")
+        
+        if "citizen_right_to_know" in ca and ca.get("citizen_right_to_know"):
+            st.warning(f"**📜 Citizen's Right to Know:** {ca.get('citizen_right_to_know')}")
+        
+        if "democratic_accountability" in ca and ca.get("democratic_accountability"):
+            st.info(f"**🗳️ Democratic Accountability:** {ca.get('democratic_accountability')}")
+        
+        st.markdown("---")
         
         col1, col2 = st.columns(2)
         
         with col1:
             if "questions_citizens_should_ask" in ca and ca["questions_citizens_should_ask"]:
                 st.markdown("#### ❓ Questions Citizens Should Ask")
-                for i, q in enumerate(ca["questions_citizens_should_ask"], 1):
+                for i, q in enumerate(ca["questions_citizens_should_ask"][:5], 1):
                     st.markdown(f"**{i}.** {q}")
             
             if "topics_should_have_covered" in ca and ca["topics_should_have_covered"]:
                 st.markdown("#### 📋 Topics Article Should Have Covered")
-                for i, topic in enumerate(ca["topics_should_have_covered"], 1):
+                for i, topic in enumerate(ca["topics_should_have_covered"][:5], 1):
                     st.markdown(f"**{i}.** {topic}")
         
         with col2:
             if "information_citizens_need" in ca and ca["information_citizens_need"]:
                 st.markdown("#### 📰 Information Citizens Need (Missing)")
-                for i, info in enumerate(ca["information_citizens_need"], 1):
+                for i, info in enumerate(ca["information_citizens_need"][:5], 1):
                     st.markdown(f"**{i}.** {info}")
             
             if "accountability_gaps" in ca and ca["accountability_gaps"]:
                 st.markdown("#### ⚖️ Accountability Gaps")
-                for i, gap in enumerate(ca["accountability_gaps"], 1):
+                for i, gap in enumerate(ca["accountability_gaps"][:5], 1):
                     st.markdown(f"**{i}.** {gap}")
         
         if "transparency_issues" in ca and ca["transparency_issues"]:
+            st.markdown("---")
             st.markdown("#### 🔍 Transparency Issues")
-            for i, issue in enumerate(ca["transparency_issues"], 1):
+            for i, issue in enumerate(ca["transparency_issues"][:5], 1):
                 st.markdown(f"**{i}.** {issue}")
         
         if "what_should_have_been_investigated" in ca and ca["what_should_have_been_investigated"]:
+            st.markdown("---")
             st.markdown("#### 🔎 What Should Have Been Investigated")
-            for i, inv in enumerate(ca["what_should_have_been_investigated"], 1):
+            for i, inv in enumerate(ca["what_should_have_been_investigated"][:5], 1):
                 st.markdown(f"**{i}.** {inv}")
-        
-        if "real_citizen_impact" in ca and ca.get("real_citizen_impact"):
-            st.info(f"**💡 Real Impact on Citizens (Not Covered):** {ca.get('real_citizen_impact')}")
-        
-        if "democratic_accountability" in ca and ca.get("democratic_accountability"):
-            st.warning(f"**🗳️ Democratic Accountability:** {ca.get('democratic_accountability')}")
-        
-        if "citizen_right_to_know" in ca and ca.get("citizen_right_to_know"):
-            st.error(f"**📜 Citizen's Right to Know:** {ca.get('citizen_right_to_know')}")
     
     # World-Class Comparison Section with Visualizations
     if "world_class_comparison" in analysis:
