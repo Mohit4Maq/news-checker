@@ -154,10 +154,40 @@ document.addEventListener('DOMContentLoaded', async () => {
                         // Use Unicode-safe base64 encoding
                         const jsonString = JSON.stringify(contentData);
                         const encoded = btoa(unescape(encodeURIComponent(jsonString)));
-                        const analyzeUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
+                        const fullUrl = `${streamlitUrl}?content=${encodeURIComponent(encoded)}`;
+                        
+                        // Check URL length (most servers limit to ~2000-8000 chars)
+                        // Streamlit Cloud typically allows ~2000 chars for query params
+                        if (fullUrl.length > 2000) {
+                            // URL too long - truncate content or use URL method
+                            console.log('URL too long (' + fullUrl.length + ' chars), truncating content...');
+                            
+                            // Try with truncated content (keep first 80% to leave room for encoding overhead)
+                            const maxContentLength = Math.floor(articleData.content.length * 0.8);
+                            contentData.content = articleData.content.substring(0, maxContentLength) + '\n\n[Content truncated due to URL length limit. Full content available on source page.]';
+                            
+                            const truncatedJson = JSON.stringify(contentData);
+                            const truncatedEncoded = btoa(unescape(encodeURIComponent(truncatedJson)));
+                            const truncatedUrl = `${streamlitUrl}?content=${encodeURIComponent(truncatedEncoded)}`;
+                            
+                            if (truncatedUrl.length <= 2000) {
+                                showStatus('warning', 'Content truncated due to length. Opening News Checker...');
+                                chrome.tabs.create({ url: truncatedUrl });
+                                setTimeout(() => window.close(), 500);
+                                return;
+                            } else {
+                                // Still too long, fall back to URL method
+                                console.log('Even truncated URL too long, using URL method');
+                                showStatus('info', 'Content too long, using URL method...');
+                                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                                chrome.tabs.create({ url: analyzeUrl });
+                                setTimeout(() => window.close(), 500);
+                                return;
+                            }
+                        }
                         
                         showStatus('success', 'Content extracted! Opening News Checker...');
-                        chrome.tabs.create({ url: analyzeUrl });
+                        chrome.tabs.create({ url: fullUrl });
                         setTimeout(() => window.close(), 500);
                         return;
                     }
