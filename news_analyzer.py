@@ -1433,7 +1433,16 @@ BE CRITICAL. QUESTION EVERYTHING. DON'T ACCEPT AT FACE VALUE.
 Act like an opposition reporter demanding answers. 
 "Roast" the report with questions, then judge it based on what answers it provides.
 Focus on what Indian citizens NEED to know vs. what's being reported.
-Be harsh but fair - if it's good reporting, say so. If it's propaganda, call it out."""
+Be harsh but fair - if it's good reporting, say so. If it's propaganda, call it out.
+
+CRITICAL INSTRUCTION FOR "true_report.full_report":
+- This MUST be a REAL, COMPLETE NEWS ARTICLE (800-1500 words)
+- DO NOT write instructions, descriptions, or meta-commentary
+- DO NOT say "The report should include..." or "This article should cover..."
+- WRITE THE ACTUAL ARTICLE as if you are a journalist publishing it
+- Start with a news lead, include quotes, data, multiple perspectives
+- Write in journalistic style with proper paragraphs and structure
+- Make it ready to publish - a real news article, not a description of one"""
         
         return prompt
     
@@ -1515,8 +1524,8 @@ Be harsh but fair - if it's good reporting, say so. If it's propaganda, call it 
                         "content": prompt
                     }
                 ],
-                temperature=0.4,  # Slightly higher for more creative comprehensive reporting
-                max_tokens=4000  # Increased to accommodate comprehensive True Report
+                temperature=0.5,  # Higher for more creative comprehensive reporting
+                max_tokens=6000  # Increased significantly to accommodate comprehensive True Report (800-1500 words)
             )
             
             analysis_text = response.choices[0].message.content
