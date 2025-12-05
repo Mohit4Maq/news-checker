@@ -22,52 +22,231 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for modern, clean styling (matching HTML template)
 st.markdown("""
     <style>
+    /* Main Layout */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+    }
+    
+    /* Header Styling */
     .main-header {
         font-size: 2.5rem;
         font-weight: bold;
-        color: #1f77b4;
+        color: #667eea;
         text-align: center;
+        margin-bottom: 1rem;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    .header-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 14px;
+        font-weight: 600;
         margin-bottom: 2rem;
     }
-    .score-box {
-        background-color: #f0f2f6;
-        padding: 1.2rem;
-        border-radius: 0.5rem;
-        margin: 0.8rem 0;
-        border: 1px solid #e0e0e0;
+    
+    /* Card Styling */
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border: 1px solid #f0f0f0;
     }
+    
+    .score-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        text-align: center;
+    }
+    
+    .score-card .stat-number {
+        font-size: 36px;
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .score-card .stat-label {
+        font-size: 14px;
+        opacity: 0.95;
+    }
+    
+    .info-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        border-left: 4px solid #667eea;
+    }
+    
+    /* Section Headers */
     .section-header {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #333;
         margin-top: 2rem;
         margin-bottom: 1rem;
         padding-bottom: 0.5rem;
-        border-bottom: 2px solid #1f77b4;
+        border-bottom: 2px solid #f0f0f0;
     }
+    
+    /* Verdict Box */
     .verdict-box {
-        padding: 1.5rem;
-        border-radius: 0.5rem;
-        margin: 1rem 0;
+        padding: 24px;
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
+    
     .factual {
-        background-color: #d4edda;
+        background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
         border-left: 5px solid #28a745;
     }
+    
     .propaganda {
-        background-color: #f8d7da;
+        background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
         border-left: 5px solid #dc3545;
     }
+    
     .misinformation {
-        background-color: #fff3cd;
+        background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
         border-left: 5px solid #ffc107;
     }
+    
     .opinion {
-        background-color: #d1ecf1;
+        background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
         border-left: 5px solid #17a2b8;
     }
+    
+    /* Feature List */
+    .feature-item {
+        display: flex;
+        align-items: flex-start;
+        padding: 16px 0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .feature-item:last-child {
+        border-bottom: none;
+    }
+    
+    .feature-icon {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 20px;
+        margin-right: 16px;
+        flex-shrink: 0;
+    }
+    
+    .feature-content {
+        flex: 1;
+    }
+    
+    .feature-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+        font-size: 15px;
+    }
+    
+    .feature-desc {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.5;
+    }
+    
+    /* Stats Grid */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+    }
+    
+    /* Clean Typography */
+    h1, h2, h3, h4 {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    /* Sidebar Styling */
+    .css-1d391kg {
+        background-color: #f8f9fa;
+    }
+    
+    /* Button Styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Progress Bar */
     .stProgress > div > div > div {
-        background-color: #1f77b4;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Metric Cards */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    /* Clean Expanders */
+    .streamlit-expanderHeader {
+        font-weight: 600;
+        color: #333;
+    }
+    
+    /* Remove default Streamlit spacing issues */
+    .element-container {
+        margin-bottom: 1rem;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: #667eea;
+        border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: #5568d3;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -233,16 +412,30 @@ def display_analysis_result(result):
         st.markdown("### 📋 Comprehensive Verdict")
         st.info(analysis.get("verdict", "N/A"))
     
-    # Key Findings
+    # Key Findings - Feature List Style
     if "key_findings" in analysis:
         st.markdown("---")
-        st.markdown("### 🔍 Key Findings")
+        st.markdown('<div class="section-header">🔍 Key Findings</div>', unsafe_allow_html=True)
         findings = analysis["key_findings"]
         if isinstance(findings, list):
+            st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             for i, finding in enumerate(findings, 1):
-                st.markdown(f"**{i}.** {finding}")
+                st.markdown(f"""
+                <div class="feature-item">
+                    <div class="feature-icon">🔍</div>
+                    <div class="feature-content">
+                        <div class="feature-title">Finding {i}</div>
+                        <div class="feature-desc">{finding}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.info(str(findings))
+            st.markdown(f"""
+            <div class="info-card">
+                <div style="color: #555; line-height: 1.6;">{str(findings)}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
     # Critical Questions & Opposition Viewpoint
     if "critical_questions" in analysis:
@@ -777,9 +970,11 @@ def display_analysis_result(result):
             for conflict in ba["conflict_of_interest"]:
                 st.error(f"• {conflict}")
 
-# Main UI
-st.markdown('<div class="main-header">📰 News Checker</div>', unsafe_allow_html=True)
-st.markdown("### Fact-Checking & Propaganda Detection for Indian News")
+# Main UI - Modern Header
+col_header1, col_header2, col_header3 = st.columns([1, 2, 1])
+with col_header2:
+    st.markdown('<div class="main-header">📰 News Checker</div>', unsafe_allow_html=True)
+    st.markdown('<div style="text-align: center;"><span class="header-badge">AI-Powered Fact-Checking</span></div>', unsafe_allow_html=True)
 
 # Sidebar
 with st.sidebar:
