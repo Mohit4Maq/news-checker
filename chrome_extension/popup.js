@@ -147,7 +147,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Display current URL
     const urlDisplay = document.getElementById('currentUrl');
-    urlDisplay.textContent = currentUrl || 'No URL found';
+    if (urlDisplay) {
+        urlDisplay.textContent = currentUrl || 'No URL found';
+    }
     
     // Load saved Streamlit URL
     chrome.storage.sync.get(['streamlitUrl'], (result) => {
@@ -198,21 +200,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Get active tab to send message to content script
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
-            // First, try to inject content script if not already injected
-            try {
-                await chrome.scripting.executeScript({
-                    target: { tabId: tab.id },
-                    files: ['content.js']
-                });
-            } catch (injectError) {
-                // Script might already be injected, that's okay
-                console.log('Script injection note:', injectError.message);
+            if (!tab || !tab.id) {
+                throw new Error('Could not get active tab');
             }
             
-            // Wait a moment for script to initialize
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Track if extraction succeeded
+            let extractionSuccess = false;
             
-            // Try direct extraction first (more reliable)
+            // Set a timeout to ensure we always redirect (max 3 seconds)
+            const redirectTimeout = setTimeout(() => {
+                if (!extractionSuccess) {
+                    console.log('Extraction timeout - using URL method');
+                    const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                    showStatus('info', 'Opening News Checker...');
+                    chrome.tabs.create({ url: analyzeUrl });
+                    setTimeout(() => window.close(), 500);
+                }
+            }, 3000);
+            
+            // Try direct extraction first (more reliable) - no need to inject content.js
             try {
                 const results = await chrome.scripting.executeScript({
                     target: { tabId: tab.id },
@@ -256,39 +262,54 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const truncatedUrl = `${streamlitUrl}?content=${encodeURIComponent(truncatedEncoded)}`;
                             
                             if (truncatedUrl.length <= 2000) {
+                                clearTimeout(redirectTimeout);
                                 showStatus('warning', 'Content truncated due to length. Opening News Checker...');
                                 chrome.tabs.create({ url: truncatedUrl });
                                 setTimeout(() => window.close(), 500);
+                                extractionSuccess = true;
                                 return;
                             } else {
                                 // Still too long, fall back to URL method
+                                clearTimeout(redirectTimeout);
                                 console.log('Even truncated URL too long, using URL method');
                                 showStatus('info', 'Content too long, using URL method...');
                                 const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
                                 chrome.tabs.create({ url: analyzeUrl });
                                 setTimeout(() => window.close(), 500);
+                                extractionSuccess = true;
                                 return;
                             }
                         }
                         
+                        clearTimeout(redirectTimeout);
                         showStatus('success', 'Content extracted! Opening News Checker...');
                         chrome.tabs.create({ url: fullUrl });
                         setTimeout(() => window.close(), 500);
+                        extractionSuccess = true;
                         return;
+                    } else {
+                        console.log('Extraction returned insufficient content:', {
+                            hasContent: !!articleData.content,
+                            length: articleData.content ? articleData.content.length : 0
+                        });
                     }
+                } else {
+                    console.log('Extraction returned no result');
                 }
             } catch (directError) {
                 console.error('Direct extraction failed:', directError);
             }
             
-            // If direct extraction didn't return content, fall back to URL method
-            // This will trigger 403 on some sites, but Streamlit will show manual paste option
-            console.log('Content extraction unavailable or returned insufficient content');
-            console.log('Falling back to URL method - Streamlit will show manual paste option if 403 occurs');
-            const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-            showStatus('info', 'Opening News Checker...');
-            chrome.tabs.create({ url: analyzeUrl });
-            setTimeout(() => window.close(), 500);
+            // If direct extraction didn't work, fall back to URL method immediately
+            if (!extractionSuccess) {
+                clearTimeout(redirectTimeout);
+                console.log('Content extraction unavailable, using URL method');
+                const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                showStatus('info', 'Opening News Checker...');
+                chrome.tabs.create({ url: analyzeUrl });
+                setTimeout(() => window.close(), 500);
+                extractionSuccess = true;
+            }
             
             /* Disabled message method - less reliable than direct extraction
             if (false) {
@@ -358,13 +379,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
         } catch (error) {
+            console.error('Extension error:', error);
             showStatus('error', 'Error: ' + error.message);
-            // Fallback to URL method
+            // Always fall back to URL method - ensure redirect happens
             try {
                 const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
+                showStatus('info', 'Opening News Checker (fallback)...');
                 chrome.tabs.create({ url: analyzeUrl });
+                setTimeout(() => window.close(), 500);
             } catch (e) {
                 console.error('Fallback also failed:', e);
+                showStatus('error', 'Failed to open Streamlit. Please check URL settings.');
             }
         }
     });
