@@ -13,7 +13,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load saved Streamlit URL
     chrome.storage.sync.get(['streamlitUrl'], (result) => {
         const streamlitUrl = result.streamlitUrl || DEFAULT_STREAMLIT_URL;
-        document.getElementById('streamlitUrl').value = streamlitUrl;
+        const urlInput = document.getElementById('streamlitUrl');
+        urlInput.value = streamlitUrl;
+        
+        // If no custom URL is saved, save the default one
+        if (!result.streamlitUrl) {
+            chrome.storage.sync.set({ streamlitUrl: DEFAULT_STREAMLIT_URL });
+        }
     });
     
     // Save Streamlit URL when changed
@@ -31,7 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         
-        if (!streamlitUrl || streamlitUrl === DEFAULT_STREAMLIT_URL) {
+        // Remove the check that blocks using the default URL
+        // The default URL is already set correctly, so allow it
+        if (!streamlitUrl || streamlitUrl.trim() === '') {
             showStatus('error', 'Please set your Streamlit app URL in the settings above.');
             return;
         }
