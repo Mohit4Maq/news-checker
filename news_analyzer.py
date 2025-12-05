@@ -523,6 +523,10 @@ class NewsAnalyzer:
         return analysis
     
     def fetch_article_content(self, url: str, use_fallbacks: bool = True) -> Dict[str, Any]:
+        """
+        Fetch article content with multiple fallback strategies.
+        Tries newspaper3k first (works better on Streamlit Cloud), then requests, then other methods.
+        """
         """Fetch and extract content from a news URL with multiple fallback methods"""
         
         # Try newspaper3k FIRST (works better on Streamlit Cloud for many sites)

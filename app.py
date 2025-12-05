@@ -1030,15 +1030,115 @@ if analyze_button:
                                 else:
                                     st.warning("⚠️ Please paste article content (at least 50 characters)")
                         else:
-                            # Other types of errors
-                            st.error(f"❌ Analysis failed: {error_msg}")
-                            
-                            # Show suggestion if available
-                            if result.get('suggestion'):
-                                st.info(f"💡 {result.get('suggestion')}")
-                            
-                            # Show fallback options
-                            with st.expander("🔧 Alternative Methods Available"):
+                            # Check if it's a 403/401 error - show prominent manual paste
+                            if "403" in error_msg or "401" in error_msg or "Forbidden" in error_msg or "block" in error_msg.lower():
+                                st.error(f"❌ {error_msg}")
+                                
+                                # Show prominent manual paste option for 403 errors
+                                st.warning("""
+                                **🚫 Website Blocking Detected**
+                                
+                                This website is blocking automated requests from Streamlit Cloud. This is very common and expected.
+                                """)
+                                
+                                st.success("""
+                                **✅ EASY SOLUTION: Use Manual Paste**
+                                
+                                This method works 100% of the time and is often faster than automated fetching!
+                                """)
+                                
+                                st.markdown("---")
+                                st.markdown("### 📝 Quick Fix: Paste Article Content Below")
+                                
+                                manual_title_fallback = st.text_input(
+                                    "📰 Article Title (Optional)",
+                                    key="fallback_title_403",
+                                    placeholder="Enter the article title",
+                                    help="Title of the news article"
+                                )
+                                manual_content_fallback = st.text_area(
+                                    "📝 Paste Article Content Here",
+                                    key="fallback_content_403",
+                                    placeholder="Copy and paste the full article text here...",
+                                    height=300,
+                                    help="This works when websites block automated access"
+                                )
+                                
+                                if st.button("🔍 Analyze Pasted Content", type="primary", key="fallback_analyze_403"):
+                                    if manual_content_fallback and len(manual_content_fallback.strip()) >= 50:
+                                        with st.spinner("🧠 Analyzing pasted content... This may take 30-60 seconds."):
+                                            try:
+                                                article_data = {
+                                                    "success": True,
+                                                    "title": manual_title_fallback or "Manually Entered Article",
+                                                    "content": manual_content_fallback,
+                                                    "url": url_input or "manual-input"
+                                                }
+                                                
+                                                rules = st.session_state.analyzer.load_rules()
+                                                prompt = st.session_state.analyzer.create_analysis_prompt(article_data, rules)
+                                                
+                                                response = st.session_state.analyzer.client.chat.completions.create(
+                                                    model=st.session_state.analyzer.model,
+                                                    messages=[
+                                                        {
+                                                            "role": "system",
+                                                            "content": "You are a CRITICAL OPPOSITION REPORTER and investigative journalist analyzing Indian news. Your job is to QUESTION EVERYTHING, identify what's MISSING, challenge claims, and demand answers that Indian citizens deserve. Don't accept reports at face value - be skeptical, ask hard questions, and judge based on what answers the report provides."
+                                                        },
+                                                        {
+                                                            "role": "user",
+                                                            "content": prompt
+                                                        }
+                                                    ],
+                                                    temperature=0.4,
+                                                    max_tokens=4000
+                                                )
+                                                
+                                                analysis_text = response.choices[0].message.content
+                                                
+                                                try:
+                                                    if "```json" in analysis_text:
+                                                        json_start = analysis_text.find("```json") + 7
+                                                        json_end = analysis_text.find("```", json_start)
+                                                        analysis_text = analysis_text[json_start:json_end].strip()
+                                                    elif "```" in analysis_text:
+                                                        json_start = analysis_text.find("```") + 3
+                                                        json_end = analysis_text.find("```", json_start)
+                                                        analysis_text = analysis_text[json_start:json_end].strip()
+                                                    
+                                                    analysis_json = json.loads(analysis_text)
+                                                    analysis_json = st.session_state.analyzer.refine_category_based_on_scores(analysis_json, article_data)
+                                                except json.JSONDecodeError:
+                                                    analysis_json = {"raw_response": analysis_text}
+                                                
+                                                result = {
+                                                    "success": True,
+                                                    "url": url_input or "manual-input",
+                                                    "article": article_data,
+                                                    "analysis": analysis_json
+                                                }
+                                                
+                                                st.session_state.last_result = result
+                                                st.success("✅ Analysis complete!")
+                                                display_analysis_result(result)
+                                                
+                                            except Exception as e:
+                                                st.error(f"❌ Error: {str(e)}")
+                                                import traceback
+                                                with st.expander("🔍 Error Details"):
+                                                    st.code(traceback.format_exc())
+                                    else:
+                                        st.warning("⚠️ Please paste article content (at least 50 characters)")
+                            else:
+                                # Other types of errors
+                                st.error(f"❌ Analysis failed: {error_msg}")
+                                
+                                # Show suggestion if available
+                                if result.get('suggestion'):
+                                    st.info(f"💡 {result.get('suggestion')}")
+                                
+                                # Show fallback options
+                                with st.expander("🔧 Alternative Methods Available"):
                                 st.markdown("""
                                 **When a site blocks automated access, you can try:**
                                 
