@@ -278,14 +278,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             } catch (directError) {
-                console.log('Direct extraction failed:', directError);
+                console.error('Direct extraction failed:', directError);
             }
             
             // If direct extraction didn't return content, fall back to URL method
             // This will trigger 403 on some sites, but Streamlit will show manual paste option
-            console.log('Content extraction unavailable, using URL method (may hit 403 - use manual paste)');
+            console.log('Content extraction unavailable or returned insufficient content');
+            console.log('Falling back to URL method - Streamlit will show manual paste option if 403 occurs');
             const analyzeUrl = `${streamlitUrl}?url=${encodeURIComponent(currentUrl)}`;
-            showStatus('info', 'Opening News Checker (may need manual paste if site blocks)...');
+            showStatus('info', 'Opening News Checker...');
             chrome.tabs.create({ url: analyzeUrl });
             setTimeout(() => window.close(), 500);
             
