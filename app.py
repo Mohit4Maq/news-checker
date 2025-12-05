@@ -324,93 +324,143 @@ def display_analysis_result(result):
         if keywords:
             st.caption(f"🔑 **Key Terms:** {', '.join(keywords[:5])}")
     
-    # Score breakdown
+    # Score breakdown - Modern Gradient Cards
     st.markdown("---")
-    st.markdown("### 📈 Detailed Scoring")
-    st.markdown("")
+    st.markdown('<div class="section-header">📈 Detailed Scoring</div>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
+    # Collect all scores
+    scores_data = []
+    if "factual_accuracy" in analysis:
+        fa = analysis["factual_accuracy"]
+        score = fa.get("score", 0)
+        percentage = int((score / 30) * 100)
+        scores_data.append({
+            "name": "Factual Accuracy",
+            "score": score,
+            "max": 30,
+            "percentage": percentage,
+            "reasoning": fa.get('reasoning', 'N/A'),
+            "icon": "✅"
+        })
     
-    with col1:
-        # Factual Accuracy
-        if "factual_accuracy" in analysis:
-            fa = analysis["factual_accuracy"]
-            score = fa.get("score", 0)
-            st.markdown(f"""
-            <div class="score-box">
-                <h4>{format_score_color(score, 30)} Factual Accuracy: {score}/30</h4>
-                <p>{fa.get('reasoning', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
+    if "source_credibility" in analysis:
+        sc = analysis["source_credibility"]
+        score = sc.get("score", 0)
+        percentage = int((score / 20) * 100)
+        scores_data.append({
+            "name": "Source Credibility",
+            "score": score,
+            "max": 20,
+            "percentage": percentage,
+            "reasoning": sc.get('reasoning', 'N/A'),
+            "icon": "📚"
+        })
+    
+    if "bias_level" in analysis:
+        bl = analysis["bias_level"]
+        score = bl.get("score", 0)
+        percentage = int((score / 15) * 100)
+        scores_data.append({
+            "name": "Bias Level",
+            "score": score,
+            "max": 15,
+            "percentage": percentage,
+            "reasoning": bl.get('reasoning', 'N/A'),
+            "icon": "⚖️"
+        })
+    
+    if "propaganda_indicators" in analysis:
+        pi = analysis["propaganda_indicators"]
+        score = pi.get("score", 0)
+        percentage = int((score / 15) * 100)
+        scores_data.append({
+            "name": "Propaganda Indicators",
+            "score": score,
+            "max": 15,
+            "percentage": percentage,
+            "reasoning": pi.get('reasoning', 'N/A'),
+            "icon": "🚨"
+        })
+    
+    if "india_relevance" in analysis:
+        ir = analysis["india_relevance"]
+        score = ir.get("score", 0)
+        percentage = int((score / 20) * 100)
+        scores_data.append({
+            "name": "India Relevance",
+            "score": score,
+            "max": 20,
+            "percentage": percentage,
+            "reasoning": ir.get('reasoning', 'N/A'),
+            "icon": "🇮🇳"
+        })
+    
+    # Display scores in gradient cards (3 columns)
+    if scores_data:
+        cols = st.columns(min(len(scores_data), 3))
+        for idx, score_data in enumerate(scores_data):
+            with cols[idx % 3]:
+                st.markdown(f"""
+                <div class="score-card">
+                    <div class="stat-number">{score_data['percentage']}%</div>
+                    <div class="stat-label">{score_data['icon']} {score_data['name']}</div>
+                    <div style="font-size: 12px; opacity: 0.9; margin-top: 8px;">{score_data['score']}/{score_data['max']}</div>
+                </div>
+                """, unsafe_allow_html=True)
         
-        # Source Credibility
-        if "source_credibility" in analysis:
-            sc = analysis["source_credibility"]
-            score = sc.get("score", 0)
-            st.markdown(f"""
-            <div class="score-box">
-                <h4>{format_score_color(score, 20)} Source Credibility: {score}/20</h4>
-                <p>{sc.get('reasoning', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Bias Level
-        if "bias_level" in analysis:
-            bl = analysis["bias_level"]
-            score = bl.get("score", 0)
-            st.markdown(f"""
-            <div class="score-box">
-                <h4>{format_score_color(score, 15)} Bias Level: {score}/15</h4>
-                <p>{bl.get('reasoning', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
+        # Show detailed reasoning in expandable section
+        with st.expander("📋 View Detailed Reasoning", expanded=False):
+            for score_data in scores_data:
+                st.markdown(f"**{score_data['icon']} {score_data['name']} ({score_data['score']}/{score_data['max']}):**")
+                st.caption(score_data['reasoning'])
+                st.markdown("---")
     
-    with col2:
-        # Propaganda Indicators
-        if "propaganda_indicators" in analysis:
-            pi = analysis["propaganda_indicators"]
-            score = pi.get("score", 0)
-            st.markdown(f"""
-            <div class="score-box">
-                <h4>{format_score_color(score, 15)} Propaganda Indicators: {score}/15</h4>
-                <p>{pi.get('reasoning', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # India Relevance
-        if "india_relevance" in analysis:
-            ir = analysis["india_relevance"]
-            score = ir.get("score", 0)
-            st.markdown(f"""
-            <div class="score-box">
-                <h4>{format_score_color(score, 20)} 🇮🇳 India Relevance: {score}/20</h4>
-                <p>{ir.get('reasoning', 'N/A')}</p>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # India-Specific Analysis
+    # India-Specific Analysis - Modern Card Layout
     if "india_specific_analysis" in analysis:
         st.markdown("---")
-        st.markdown("### 🇮🇳 India-Specific Analysis")
+        st.markdown('<div class="section-header">🇮🇳 India-Specific Analysis</div>', unsafe_allow_html=True)
         isa = analysis["india_specific_analysis"]
         
         col1, col2 = st.columns(2)
         with col1:
-            st.markdown(f"**📌 Relevance to India:**")
-            st.info(isa.get('relevance_to_india', 'N/A'))
-            st.markdown(f"**💡 Potential Impact:**")
-            st.info(isa.get('potential_impact', 'N/A'))
+            st.markdown(f"""
+            <div class="info-card">
+                <div style="font-weight: 600; color: #667eea; margin-bottom: 8px;">📌 Relevance to India</div>
+                <div style="color: #555; line-height: 1.6;">{isa.get('relevance_to_india', 'N/A')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="info-card">
+                <div style="font-weight: 600; color: #667eea; margin-bottom: 8px;">💡 Potential Impact</div>
+                <div style="color: #555; line-height: 1.6;">{isa.get('potential_impact', 'N/A')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
         with col2:
-            st.markdown(f"**⚠️ Harm Assessment:**")
-            st.warning(isa.get('harm_assessment', 'N/A'))
-            st.markdown(f"**💬 Recommendation:**")
-            st.success(isa.get('recommendation', 'N/A'))
+            st.markdown(f"""
+            <div class="info-card" style="border-left-color: #ffc107;">
+                <div style="font-weight: 600; color: #ff9800; margin-bottom: 8px;">⚠️ Harm Assessment</div>
+                <div style="color: #555; line-height: 1.6;">{isa.get('harm_assessment', 'N/A')}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            st.markdown(f"""
+            <div class="info-card" style="border-left-color: #28a745;">
+                <div style="font-weight: 600; color: #28a745; margin-bottom: 8px;">💬 Recommendation</div>
+                <div style="color: #555; line-height: 1.6;">{isa.get('recommendation', 'N/A')}</div>
+            </div>
+            """, unsafe_allow_html=True)
     
-    # Comprehensive Verdict
+    # Comprehensive Verdict - Modern Card
     if "verdict" in analysis:
         st.markdown("---")
-        st.markdown("### 📋 Comprehensive Verdict")
-        st.info(analysis.get("verdict", "N/A"))
+        st.markdown('<div class="section-header">📋 Comprehensive Verdict</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="info-card" style="border-left-color: #667eea; background: #f8f9ff;">
+            <div style="color: #555; line-height: 1.8; font-size: 15px;">{analysis.get("verdict", "N/A")}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Key Findings - Feature List Style
     if "key_findings" in analysis:
@@ -437,23 +487,37 @@ def display_analysis_result(result):
             </div>
             """, unsafe_allow_html=True)
     
-    # Critical Questions & Opposition Viewpoint
+    # Critical Questions & Opposition Viewpoint - Feature Card Style
     if "critical_questions" in analysis:
         st.markdown("---")
-        st.markdown("### ❓ Critical Questions & Opposition Viewpoint")
+        st.markdown('<div class="section-header">❓ Critical Questions & Opposition Viewpoint</div>', unsafe_allow_html=True)
         cq = analysis["critical_questions"]
         
         if "questions_raised" in cq and cq.get("questions_raised"):
+            st.markdown('<div class="feature-card">', unsafe_allow_html=True)
             st.markdown("#### Questions That Should Be Asked:")
             for i, q in enumerate(cq["questions_raised"][:5], 1):
-                st.markdown(f"**{i}.** {q}")
+                st.markdown(f"""
+                <div class="feature-item">
+                    <div class="feature-icon">❓</div>
+                    <div class="feature-content">
+                        <div class="feature-title">Question {i}</div>
+                        <div class="feature-desc">{q}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
     
-    # Opposition Viewpoint
+    # Opposition Viewpoint - Info Card
     if "opposition_viewpoint" in analysis and analysis.get("opposition_viewpoint"):
         st.markdown("---")
-        st.markdown("### 🗣️ Opposition Viewpoint")
-        with st.expander("📖 View Opposition Analysis", expanded=False):
-            st.markdown(analysis.get("opposition_viewpoint"))
+        st.markdown('<div class="section-header">🗣️ Opposition Viewpoint</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="info-card" style="border-left-color: #dc3545; background: #fff5f5;">
+            <div style="font-weight: 600; color: #dc3545; margin-bottom: 12px;">📖 Opposition Analysis</div>
+            <div style="color: #555; line-height: 1.8;">{analysis.get("opposition_viewpoint")}</div>
+        </div>
+        """, unsafe_allow_html=True)
     
     # Citizen Accountability Section
     if "citizen_accountability" in analysis:
