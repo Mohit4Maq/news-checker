@@ -47,9 +47,16 @@ class NewsAnalyzer:
     
     def __init__(self):
         """Initialize the analyzer with OpenAI client"""
-        api_key = os.getenv("OPEN_AI_API", "").strip('"')
+        # Try to get API key from Streamlit secrets first (for Streamlit Cloud)
+        # Then fall back to environment variable (for local development)
+        try:
+            import streamlit as st
+            api_key = st.secrets.get("OPEN_AI_API", "")
+        except:
+            api_key = os.getenv("OPEN_AI_API", "").strip('"')
+        
         if not api_key:
-            raise ValueError("OPENAI_API key not found in .env file")
+            raise ValueError("OPENAI_API key not found. Please set OPEN_AI_API in Streamlit secrets or .env file")
         
         self.client = OpenAI(api_key=api_key)
         self.rules_path = "NEWS_ANALYSIS_RULES.md"
