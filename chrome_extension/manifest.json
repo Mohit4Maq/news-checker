@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "News Checker - Fact-Check Extension",
-    "version": "1.2.0",
-  "description": "Quickly analyze news articles with AI-powered fact-checking. Send article URLs to News Checker Streamlit app with one click.",
+  "version": "1.2.0",
+  "description": "AI-powered fact-checking for Indian news. Analyze articles for propaganda, bias, and accuracy with one click.",
   "permissions": [
     "activeTab",
     "clipboardWrite",
