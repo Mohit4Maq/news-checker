@@ -228,14 +228,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (results && results[0] && results[0].result) {
                     const articleData = results[0].result;
                     
+                    // Safely get content length
+                    let contentLength = 0;
+                    try {
+                        if (articleData && articleData.content && typeof articleData.content === 'string') {
+                            contentLength = articleData.content.length;
+                        }
+                    } catch (e) {
+                        console.error('Error getting content length:', e);
+                    }
+                    
                     console.log('Extraction result:', {
-                        hasContent: !!articleData.content,
-                        contentLength: articleData.content ? articleData.content.length : 0,
-                        title: articleData.title
+                        hasContent: !!(articleData && articleData.content),
+                        contentLength: contentLength,
+                        title: articleData ? articleData.title : 'No title'
                     });
                     
                     // Lower threshold - accept even shorter content (30 chars minimum)
-                    if (articleData.content && articleData.content.length > 30) {
+                    if (articleData && articleData.content && typeof articleData.content === 'string' && contentLength > 30) {
                         const contentData = {
                             url: articleData.url,
                             title: articleData.title,
@@ -289,8 +299,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     } else {
                         console.log('Extraction returned insufficient content:', {
-                            hasContent: !!articleData.content,
-                            length: articleData.content ? articleData.content.length : 0
+                            hasContent: !!(articleData && articleData.content),
+                            length: contentLength,
+                            type: articleData && articleData.content ? typeof articleData.content : 'undefined'
                         });
                     }
                 } else {
