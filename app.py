@@ -10,6 +10,10 @@ import plotly.express as px
 import pandas as pd
 from news_analyzer import NewsAnalyzer
 
+# App Version
+APP_VERSION = "1.2.0"
+VERSION_DATE = "2025-12-05"
+
 # Page configuration
 st.set_page_config(
     page_title="News Checker - Fact-Checking & Propaganda Detection",
@@ -819,6 +823,11 @@ with st.sidebar:
     3. Review the detailed analysis
     4. Check scores and verdict
     """)
+    
+    st.markdown("---")
+    st.markdown("### 📌 Version")
+    st.caption(f"**v{APP_VERSION}**")
+    st.caption(f"Updated: {VERSION_DATE}")
 
 # Main content area
 st.markdown("---")
@@ -1110,9 +1119,10 @@ if st.session_state.get('show_last', False) and st.session_state.last_result:
 # Footer
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #666; padding: 1rem;'>"
-    "Powered by OpenAI GPT-4 | Built for Indian News Analysis"
-    "</div>",
+    f"<div style='text-align: center; color: #666; padding: 1rem;'>"
+    f"Powered by OpenAI GPT-4 | Built for Indian News Analysis<br>"
+    f"<small>Version {APP_VERSION} | Updated {VERSION_DATE}</small>"
+    f"</div>",
     unsafe_allow_html=True
 )
 
